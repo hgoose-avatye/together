@@ -1,0 +1,104 @@
+"""기획서 7장 엔티티 설계. 제약 이름은 마이그레이션과 같아야 한다."""
+
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    MetaData,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+NAMING = {
+    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
+    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+
+class Base(DeclarativeBase):
+    metadata = MetaData(naming_convention=NAMING)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    nickname: Mapped[str] = mapped_column(String(20))
+    lat: Mapped[Decimal] = mapped_column(Numeric(4, 2))
+    lng: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Item(Base):
+    __tablename__ = "items"
+    __table_args__ = (
+        CheckConstraint("type IN ('GROUP_BUY', 'SHARE')", name="type"),
+        CheckConstraint(
+            "category IN ('FRUIT_VEG', 'FOOD', 'HOUSEHOLD', 'ETC')", name="category"
+        ),
+        CheckConstraint("total_slots BETWEEN 1 AND 20", name="total_slots"),
+        CheckConstraint("total_price >= 0", name="total_price"),
+        CheckConstraint(
+            "filled_slots >= 0 AND filled_slots <= total_slots", name="filled_slots"
+        ),
+        CheckConstraint(
+            "status IN ('OPEN', 'CONFIRMED', 'FAILED', 'CANCELED')", name="status"
+        ),
+        CheckConstraint(
+            "type <> 'SHARE' OR (total_slots = 1 AND total_price = 0 AND image_url IS NOT NULL)",
+            name="share_rule",
+        ),
+        Index(None, "status", "deadline"),
+        Index(None, "owner_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    type: Mapped[str] = mapped_column(String(10))
+    category: Mapped[str] = mapped_column(String(10), server_default="ETC")
+    title: Mapped[str] = mapped_column(String(50))
+    total_slots: Mapped[int] = mapped_column(Integer)
+    total_price: Mapped[int] = mapped_column(Integer)
+    price_per_slot: Mapped[int] = mapped_column(Integer)
+    filled_slots: Mapped[int] = mapped_column(Integer, server_default="0")
+    deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    lat: Mapped[Decimal] = mapped_column(Numeric(4, 2))
+    lng: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    pickup_note: Mapped[str] = mapped_column(String(200))
+    product_url: Mapped[str | None] = mapped_column(String(500))
+    image_url: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(String(10), server_default="OPEN")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Reservation(Base):
+    __tablename__ = "reservations"
+    __table_args__ = (
+        UniqueConstraint("item_id", "user_id"),
+        Index(None, "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    item_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("items.id"))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
