@@ -38,6 +38,7 @@
 - 몫 신청 0행일 때 원인 판정 순서는 9.5대로 고정한다: 글 없음 → 이미 신청함 → 내 글 → 마감·무산·취소 → 몫 소진.
 - `pickup_note`는 개설자와 CONFIRMED 글의 참여자에게만 응답한다. 응답 스키마를 새로 만들면 이것부터 확인한다.
 - 좌표는 서버에서 소수점 2자리로 반올림한 뒤 저장한다.
+- 부담금: 참여자 `price_per_slot = 10 × ⌊total_price ÷ (10 × (total_slots + 1))⌋`, 개설자 = `total_price − total_slots × price_per_slot`. 합계는 항상 총액과 같아야 한다. 개설자 부담금은 저장하지 않고 계산한다.
 - 시각은 `timestamptz`이고, API는 오프셋이 붙은 ISO 문자열을 주고받는다.
 - 에러 응답은 `{ "code", "message" }` 형식이고 8장 표의 code만 쓴다. 새 code가 필요하면 기획서를 먼저 고친다.
 - DB 제약(UNIQUE, CHECK, FK)을 지우거나 약하게 하지 않는다.
