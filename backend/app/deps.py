@@ -1,0 +1,26 @@
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.errors import AppError
+from app.models import User
+from app.security import decode_access_token
+
+# 토큰이 없을 때도 FastAPI 기본 403 대신 우리 에러 형식(UNAUTHORIZED)으로 답하려고 auto_error를 끈다.
+bearer = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    db: Session = Depends(get_db),
+) -> User:
+    if credentials is None:
+        raise AppError("UNAUTHORIZED")
+    user_id = decode_access_token(credentials.credentials)
+    if user_id is None:
+        raise AppError("UNAUTHORIZED")
+    user = db.get(User, user_id)
+    if user is None:  # 토큰은 유효하지만 탈퇴·삭제된 계정
+        raise AppError("UNAUTHORIZED")
+    return user
