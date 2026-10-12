@@ -10,6 +10,9 @@ from sqlalchemy import text
 
 from app.db import engine
 from app.pricing import split_price
+from app.security import create_access_token
+
+from .conftest import TestUser, new_email
 
 _counter = itertools.count()
 
@@ -81,3 +84,32 @@ def insert_reservation(item_id: int, user_id: int) -> None:
             text("INSERT INTO reservations (item_id, user_id) VALUES (:i, :u)"),
             {"i": item_id, "u": user_id},
         )
+
+
+def insert_user(location: tuple[float, float], nickname: str = "테스트유저") -> TestUser:
+    """가입·로그인을 거치지 않고 사용자를 DB에 넣고 토큰을 바로 발급한다(bcrypt를 피해 빠르다).
+
+    로그인 자체를 검사하는 테스트에는 쓰지 말 것: 비밀번호 해시가 가짜다.
+    """
+    email = new_email()
+    with engine.begin() as conn:
+        user_id = conn.execute(
+            text(
+                "INSERT INTO users (email, password_hash, nickname, lat, lng) "
+                "VALUES (:email, 'not-a-real-hash', :nickname, :lat, :lng) RETURNING id"
+            ),
+            {"email": email, "nickname": nickname, "lat": location[0], "lng": location[1]},
+        ).scalar_one()
+    return TestUser(user_id, email, nickname, {"Authorization": f"Bearer {create_access_token(user_id)}"})
+
+
+def item_row(item_id: int):
+    with engine.connect() as conn:
+        return conn.execute(text("SELECT * FROM items WHERE id = :id"), {"id": item_id}).one()
+
+
+def reservation_count(item_id: int) -> int:
+    with engine.connect() as conn:
+        return conn.execute(
+            text("SELECT count(*) FROM reservations WHERE item_id = :id"), {"id": item_id}
+        ).scalar_one()

@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import get_current_user
 from app.errors import invalid_input
-from app.item_schemas import ItemCreate, ItemDetailOut, ItemListOut
+from app.item_schemas import ItemCreate, ItemDetailOut, ItemListOut, JoinOut
 from app.items import distance_to, to_item_detail, to_item_out
+from app.join import join_item
 from app.models import Item, Reservation, User
 from app.pricing import split_price
 from app.schemas import round_coord
@@ -119,3 +120,13 @@ def list_items(
             for item, owner, is_joined, _ in rows
         ]
     )
+
+
+@router.post("/{item_id}/join", status_code=201, response_model=JoinOut)
+def join(
+    item_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JoinOut:
+    """몫 1개를 신청한다. 사용자는 토큰으로 정하고, 요청 본문은 없다."""
+    return join_item(db, item_id, user.id)
