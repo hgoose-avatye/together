@@ -4,15 +4,21 @@
 다른 프로젝트(배포용 등)는 연결 문자열을 인자로 준다:
   uv run python scripts/setup_env.py "postgresql://...:[YOUR-PASSWORD]@...:5432/postgres"
 비밀번호는 화면에 보이지 않고, 특수문자는 자동으로 퍼센트 인코딩한다.
+
+사진 저장소 설정(SUPABASE_URL, SUPABASE_SERVICE_KEY)과 버킷 확인:
+  uv run python scripts/setup_env.py storage
+SUPABASE_URL은 DATABASE_URL의 프로젝트 ID로 자동으로 만든다.
 """
 
 import getpass
+import re
 import secrets
 import shutil
 import sys
 from pathlib import Path
 from urllib.parse import quote
 
+import httpx
 import psycopg
 
 ENV = Path(__file__).resolve().parents[1] / ".env"
@@ -30,9 +36,62 @@ def set_line(lines: list[str], key: str, value: str) -> list[str]:
     return out
 
 
+def get_value(lines: list[str], key: str) -> str:
+    return next((l.split("=", 1)[1] for l in lines if l.startswith(f"{key}=")), "")
+
+
+def setup_storage() -> None:
+    lines = ENV.read_text().splitlines()
+    m = re.search(r"//postgres\.([a-z0-9]+):", get_value(lines, "DATABASE_URL"))
+    if not m:
+        sys.exit(
+            "DATABASE_URL에서 프로젝트 ID를 찾지 못했습니다. DB 설정부터 실행해 주세요."
+        )
+    url = f"https://{m.group(1)}.supabase.co"
+    bucket = get_value(lines, "SUPABASE_BUCKET") or "images"
+    print(f"SUPABASE_URL: {url}")
+    print(
+        "Supabase > Project Settings > API Keys > Secret keys(sb_secret_...)를 붙여 넣으세요."
+    )
+
+    key = ""
+    while not key:
+        key = getpass.getpass("Secret key (붙여 넣어도 보이지 않음): ").strip()
+    if not key.startswith(("sb_secret_", "eyJ")):
+        sys.exit(
+            "Secret key 형식이 아닙니다(sb_secret_로 시작). Publishable key를 넣지 않았는지 확인해 주세요."
+        )
+
+    print(f"버킷 '{bucket}' 확인 중...")
+    r = httpx.get(
+        f"{url}/storage/v1/bucket/{bucket}",
+        headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        timeout=15,
+    )
+    if r.status_code != 200:
+        sys.exit(
+            f"버킷 확인 실패({r.status_code}). .env는 바꾸지 않았습니다.\n{r.text[:200]}"
+        )
+    b = r.json()
+    print(
+        f"버킷 확인: 공개={b.get('public')}, 크기 제한={b.get('file_size_limit')}, "
+        f"형식={b.get('allowed_mime_types')}"
+    )
+
+    lines = set_line(lines, "SUPABASE_URL", url)
+    lines = set_line(lines, "SUPABASE_SERVICE_KEY", key)
+    lines = set_line(lines, "SUPABASE_BUCKET", bucket)
+    ENV.write_text("\n".join(lines) + "\n")
+    print("저장 완료. backend/.env를 저장했습니다.")
+
+
 def main() -> None:
     if not ENV.exists():
         shutil.copy(EXAMPLE, ENV)
+
+    if len(sys.argv) > 1 and sys.argv[1] == "storage":
+        setup_storage()
+        return
 
     url = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_URL
     if "[YOUR-PASSWORD]" not in url:

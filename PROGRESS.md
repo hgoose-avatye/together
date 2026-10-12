@@ -24,10 +24,18 @@
 
 ## 막힌 것 / 사용자 확인 필요
 
-- 원격 저장소(GitHub) 미연결. Render 배포 전에 필요
-- 배포용 Supabase 프로젝트(gachi-prod) 미생성
+- 배포용(gachi-prod) Storage 버킷 `images`는 개발용과 같은 설정으로 만들어야 함(배포 때 확인)
+- 배포용 DB 연결 문자열과 Secret key는 12h 배포 때 Render 환경 변수에 직접 입력
+
+## 준비된 외부 자원
+
+- GitHub: https://github.com/HwangHeegu/together (origin, main 푸시됨)
+- Supabase 개발용(gachi-dev, ruizsrgsebyjwxeswtwd): DB 0001 적용, Storage 버킷 `images` 확인, backend/.env 설정 완료
+- Supabase 배포용(gachi-prod): 생성됨, 아직 미설정
+- Render: 가입 완료
 
 ## 환경 메모
 
 - uv, Node는 설치됨. 셸에서 안 잡히면 `export PATH="$HOME/.local/bin:$PATH"`, Node는 `source ~/.nvm/nvm.sh`
-- `backend/.env`는 `uv run python scripts/setup_env.py`로 만든다(비밀번호를 대화에 붙여 넣지 않는다)
+- `backend/.env`는 `uv run python scripts/setup_env.py`로 만든다(비밀번호를 대화에 붙여 넣지 않는다). 저장소 키는 `... setup_env.py storage`
+- 편집기로 `.env`를 저장했는데 반영되지 않은 적이 있다. `.env`는 스크립트로만 고친다
