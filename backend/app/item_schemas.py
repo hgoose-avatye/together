@@ -170,3 +170,14 @@ class ItemDetailOut(ItemOut):
 
 class ItemListOut(BaseModel):
     items: list[ItemOut]
+
+
+class JoinOut(BaseModel):
+    """몫 신청(A-05) 결과. status는 신청 직후의 저장값(OPEN 또는 마지막 몫이면 CONFIRMED)."""
+
+    reservation_id: int
+    item_id: int
+    filled_slots: int
+    total_slots: int
+    remaining_slots: int
+    status: str
