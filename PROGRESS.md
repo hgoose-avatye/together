@@ -4,8 +4,8 @@
 
 ## 지금 하는 일
 
-**2단계 같이사기 API** — A-04, A-03, A-05 완료, 다음은 A-06·A-08
-브랜치: `feat/stage-2-join` (1단계 PR #1, A-04·A-03 PR #2 병합됨)
+**2단계 같이사기 API** — A-04, A-03, A-05, A-06, A-08 완료, 다음은 A-09 개설 취소
+브랜치: `feat/stage-2-me` (PR #1 인증, #2 글 작성·목록, #3 몫 신청 병합됨)
 
 ## 로드맵 (단계 → 넘어가는 조건)
 
@@ -23,9 +23,8 @@
 
 ## 다음 할 일 (세부)
 
-1. [2단계] A-06/A-08: 무산 기록은 별도 트랜잭션 + SKIP LOCKED, 실패 무시
-2. [2단계] A-09 취소
-3. 에러 코드 14개 중 반환 조건을 테스트한 것: INVALID_INPUT, EMAIL_TAKEN, INVALID_CREDENTIALS, UNAUTHORIZED, NOT_FOUND, OWN_ITEM, ALREADY_JOINED, SLOTS_FULL, EXPIRED. 남은 것: NOT_OWNER, NOT_OPEN(A-09), FILE_TOO_LARGE, UNSUPPORTED_FILE, UPLOAD_FAILED(나눔 묶음)
+1. [2단계] A-09 취소: 조건부 UPDATE(owner_id, OPEN, 마감 전), 0행이면 재조회(404 → 403 NOT_OWNER → 409 NOT_OPEN). 무산 기록 문장은 쓰지 않는다
+2. 에러 코드 14개 중 반환 조건을 테스트한 것: INVALID_INPUT, EMAIL_TAKEN, INVALID_CREDENTIALS, UNAUTHORIZED, NOT_FOUND, OWN_ITEM, ALREADY_JOINED, SLOTS_FULL, EXPIRED. 남은 것: NOT_OWNER, NOT_OPEN(A-09), FILE_TOO_LARGE, UNSUPPORTED_FILE, UPLOAD_FAILED(나눔 묶음)
 
 ## 완료
 
@@ -34,6 +33,7 @@
 - [x] 기획서 v3.2: 외부 리뷰 반영(나눔 마감 다음 날 00:00, 무산 기록 범위 축소, 신청 실패 판정 순서, Must는 같이사기만)
 - [x] 기획서 v3.3: 부담금 규칙(개설자도 몫 1개, 참여자 10원 단위 내림, 개설자가 나머지 부담, 상한 없음)
 - [x] 1단계 공통 기반·인증: errors.py(코드 14개, 기획서 8장과 일치 테스트), security.py, deps.py, A-01, A-02. 테스트 32개 통과, 서버 기동·CORS 확인 (PR #1 병합)
+- [x] 2단계 A-06 내 참여·A-08 내 글(`routers/me.py`): 성사된 글에서만 pickup_note 공개(내 글은 항상), 참여자는 한 번에 조회. 무산 기록 문장(`record_failures`): 별도 커밋, SKIP LOCKED, 실패 무시 — 잠금·실패 시나리오까지 테스트. 테스트 17개 추가
 - [x] 2단계 A-05 몫 신청(`app/join.py`): 조건부 UPDATE 한 문장 + 실패 원인 판정 순서. 순차 35개 + 동시성 26개 테스트. 안전한 구현을 망가뜨리면 동시성 테스트가 실패함을 확인
 - [x] 2단계 A-03 목록: 반경(Haversine)·정렬·검색(와일드카드 이스케이프)·is_joined·pickup_note 제외. 시드 1,000건 중앙값 약 85ms. 테스트 26개 추가(111개)
 - [x] 2단계 A-04 글 작성(같이사기): pricing.py(부담금 규칙, 전 조합 합계 검증), geo.py(Haversine), item_schemas.py(검증), items.py(응답 변환, 표시 상태), routers/items.py. 테스트 85개 통과(17초)

@@ -1,6 +1,11 @@
 """글 응답을 만드는 공통 함수. 목록(A-03), 작성(A-04) 등이 함께 쓴다."""
 
+import logging
 from datetime import datetime, timezone
+
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.geo import haversine_km
 from app.item_schemas import KST, ItemDetailOut, ItemOut
@@ -58,3 +63,32 @@ def to_item_detail(item: Item, owner: User, viewer: User) -> ItemDetailOut:
     return ItemDetailOut(
         **base.model_dump(), pickup_note=item.pickup_note, owner_share=owner_share
     )
+
+
+logger = logging.getLogger(__name__)
+
+# 마감 지난 OPEN 글을 FAILED로 기록한다(기획서 5.4). 여러 번 실행해도 결과가 같다.
+FAIL_SQL = text(
+    """
+    UPDATE items SET status = 'FAILED'
+    WHERE id IN (
+        SELECT id FROM items
+        WHERE status = 'OPEN' AND deadline <= now()
+        FOR UPDATE SKIP LOCKED
+    )
+    """
+)
+
+
+def record_failures(db: Session) -> None:
+    """A-06·A-08에서만 부른다. 본 조회 전에 따로 커밋하고, 실패해도 요청은 계속한다.
+
+    SKIP LOCKED라서 다른 요청이 잡은 행은 건너뛰고 기다리지 않는다(다음 조회 때 기록된다).
+    기록이 늦어도 응답의 status는 display_status가 FAILED로 보정한다.
+    """
+    try:
+        db.execute(FAIL_SQL)
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.warning("무산 기록에 실패했습니다. 요청은 계속합니다.", exc_info=True)

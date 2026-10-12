@@ -181,3 +181,48 @@ class JoinOut(BaseModel):
     total_slots: int
     remaining_slots: int
     status: str
+
+
+class ReservedItemOut(BaseModel):
+    id: int
+    type: str
+    title: str
+    owner_nickname: str
+    price_per_slot: int
+    deadline: datetime
+    status: str
+    pickup_note: str | None  # 성사(CONFIRMED)된 글에서만 채운다
+
+
+class ReservationOut(BaseModel):
+    reservation_id: int
+    joined_at: datetime
+    item: ReservedItemOut
+
+
+class ReservationListOut(BaseModel):
+    reservations: list[ReservationOut]
+
+
+class ParticipantOut(BaseModel):
+    nickname: str
+    joined_at: datetime
+
+
+class MyItemOut(BaseModel):
+    id: int
+    type: str
+    title: str
+    filled_slots: int
+    total_slots: int
+    total_price: int
+    price_per_slot: int
+    owner_share: int
+    deadline: datetime
+    status: str
+    pickup_note: str
+    participants: list[ParticipantOut]
+
+
+class MyItemListOut(BaseModel):
+    items: list[MyItemOut]
