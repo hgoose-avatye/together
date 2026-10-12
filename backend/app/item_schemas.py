@@ -166,3 +166,7 @@ class ItemDetailOut(ItemOut):
 
     pickup_note: str
     owner_share: int
+
+
+class ItemListOut(BaseModel):
+    items: list[ItemOut]

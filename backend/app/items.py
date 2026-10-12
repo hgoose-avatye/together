@@ -16,12 +16,20 @@ def display_status(item: Item, now: datetime | None = None) -> str:
     return item.status
 
 
+def distance_to(item: Item, origin: tuple[float, float]) -> float:
+    return haversine_km(origin[0], origin[1], float(item.lat), float(item.lng))
+
+
 def to_item_out(
-    item: Item, owner: User, viewer: User, is_joined: bool = False
+    item: Item,
+    owner: User,
+    viewer: User,
+    is_joined: bool = False,
+    origin: tuple[float, float] | None = None,
 ) -> ItemOut:
-    distance = haversine_km(
-        float(viewer.lat), float(viewer.lng), float(item.lat), float(item.lng)
-    )
+    """origin은 거리 기준점이다. 없으면 보는 사람의 저장 위치를 쓴다."""
+    origin = origin or (float(viewer.lat), float(viewer.lng))
+    distance = distance_to(item, origin)
     return ItemOut(
         id=item.id,
         type=item.type,
