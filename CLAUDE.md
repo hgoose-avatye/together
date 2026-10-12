@@ -14,7 +14,7 @@
   - `alembic/versions/` 스키마 이력. 0001이 기획서 7장 전체 스키마다
 - `frontend/` React + Vite + TypeScript + react-router + Tailwind (모바일 웹, 폭 360~430px). 패키지 관리는 npm
   - `src/api.ts` 모든 API 호출이 거치는 래퍼(토큰, 401, 에러 code)
-- `scripts/concurrency_test.py` 동시 신청 테스트 겸 발표 데모 스크립트
+- `backend/scripts/concurrency_test.py` 실제 서버에 동시 신청 요청을 보내는 발표 시연 스크립트(`--item`, `--cleanup`은 파일 맨 위 설명 참고)
 - DB는 개발 중에도 Supabase(개발용 프로젝트)에 붙는다. 로컬 Postgres는 없다.
 - 핵심 SQL 3개(몫 신청, 무산 기록, 취소)는 ORM이 아니라 `text()`로 기획서 문장 그대로 쓴다.
 
@@ -26,7 +26,7 @@
 - 백엔드 실행: `cd backend && uv run fastapi dev app/main.py`
 - 백엔드 테스트: `cd backend && uv run pytest -q`
 - 마이그레이션: `cd backend && uv run alembic upgrade head` (생성은 `uv run alembic revision --autogenerate -m "..."`)
-- 동시성 테스트: `cd backend && uv run python ../scripts/concurrency_test.py`
+- 동시성 시연: 서버를 띄운 뒤 `cd backend && uv run python scripts/concurrency_test.py --cleanup` (pytest의 `tests/test_join_concurrency.py`와는 별개: 이쪽은 실제 HTTP)
 - 프론트 실행: `cd frontend && npm run dev`
 - 포맷: 파일 수정 시 훅이 자동으로 돌린다(Python은 ruff, 프론트는 prettier)
 
