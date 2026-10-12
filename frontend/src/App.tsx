@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import type { ReactNode } from 'react'
 import { token } from './api'
 import Auth from './pages/Auth'
+import Main from './pages/Main'
 
 // 기획서 11장의 화면 4개. 각 화면은 기능을 구현하면서 채운다.
 function Placeholder({ title }: { title: string }) {
@@ -22,7 +23,7 @@ export default function App() {
             path="/"
             element={
               <RequireAuth>
-                <Placeholder title="메인" />
+                <Main />
               </RequireAuth>
             }
           />
