@@ -1,0 +1,23 @@
+// 위치 권한을 거부했을 때 고르는 동네. 좌표는 서버가 어차피 소수점 2자리로 반올림한다.
+export const NEIGHBORHOODS: { name: string; lat: number; lng: number }[] = [
+  { name: '망원동', lat: 37.56, lng: 126.9 },
+  { name: '합정동', lat: 37.55, lng: 126.91 },
+  { name: '연남동', lat: 37.56, lng: 126.93 },
+  { name: '홍대입구', lat: 37.56, lng: 126.92 },
+  { name: '신촌', lat: 37.56, lng: 126.94 },
+  { name: '공덕', lat: 37.54, lng: 126.95 },
+  { name: '여의도', lat: 37.52, lng: 126.92 },
+  { name: '영등포', lat: 37.52, lng: 126.91 },
+  { name: '노량진', lat: 37.51, lng: 126.94 },
+  { name: '신림', lat: 37.48, lng: 126.93 },
+  { name: '사당', lat: 37.48, lng: 126.98 },
+  { name: '이태원', lat: 37.53, lng: 126.99 },
+  { name: '혜화', lat: 37.58, lng: 127.0 },
+  { name: '왕십리', lat: 37.56, lng: 127.04 },
+  { name: '성수동', lat: 37.54, lng: 127.06 },
+  { name: '건대입구', lat: 37.54, lng: 127.07 },
+  { name: '잠실', lat: 37.51, lng: 127.1 },
+  { name: '강남역', lat: 37.5, lng: 127.03 },
+  { name: '서초동', lat: 37.48, lng: 127.03 },
+  { name: '노원', lat: 37.66, lng: 127.06 },
+]
