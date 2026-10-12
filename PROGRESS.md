@@ -4,8 +4,8 @@
 
 ## 지금 하는 일
 
-**2단계 같이사기 API** 시작 전. 첫 작업은 A-04 글 작성의 부담금 계산 함수 테스트
-브랜치: 1단계는 `feat/stage-1-auth`(미푸시, main에 미병합). 2단계는 `feat/stage-2-items`를 새로 만들어 시작
+**2단계 같이사기 API** — A-04, A-03 완료, 다음은 A-05 몫 신청
+브랜치: `feat/stage-2-items` (1단계는 PR #1로 main에 병합됨)
 
 ## 로드맵 (단계 → 넘어가는 조건)
 
@@ -23,8 +23,7 @@
 
 ## 다음 할 일 (세부)
 
-1. [2단계] A-04: 부담금 계산 함수 테스트 먼저(10,000원/3명 → 3,330·3,340 등)
-2. [2단계] A-03 목록 → A-05: 0행 판정 순서(글 없음→이미 신청함→내 글→마감·무산·취소→몫 소진)
+1. [2단계] A-05 몫 신청: 조건부 UPDATE(`text()`), 0행 판정 순서(글 없음→이미 신청함→내 글→마감·무산·취소→몫 소진)
 3. [2단계] A-06/A-08: 무산 기록은 별도 트랜잭션 + SKIP LOCKED, 실패 무시
 4. [2단계] A-09 취소
 5. 에러 코드마다 반환 조건 테스트 1개씩(전 단계에 걸쳐). 남은 코드: NOT_FOUND, OWN_ITEM, NOT_OWNER, ALREADY_JOINED, SLOTS_FULL, NOT_OPEN, EXPIRED(A-04~A-09), FILE_TOO_LARGE, UNSUPPORTED_FILE, UPLOAD_FAILED(나눔 묶음)
@@ -35,7 +34,9 @@
 - [x] backend/frontend 기본 구조, Supabase 개발 DB 연결, 0001 마이그레이션 적용, RLS (8119275)
 - [x] 기획서 v3.2: 외부 리뷰 반영(나눔 마감 다음 날 00:00, 무산 기록 범위 축소, 신청 실패 판정 순서, Must는 같이사기만)
 - [x] 기획서 v3.3: 부담금 규칙(개설자도 몫 1개, 참여자 10원 단위 내림, 개설자가 나머지 부담, 상한 없음)
-- [x] 1단계 공통 기반·인증: errors.py(코드 14개, 기획서 8장과 일치 테스트), security.py, deps.py, A-01, A-02. 테스트 32개 통과, 서버 기동·CORS 확인
+- [x] 1단계 공통 기반·인증: errors.py(코드 14개, 기획서 8장과 일치 테스트), security.py, deps.py, A-01, A-02. 테스트 32개 통과, 서버 기동·CORS 확인 (PR #1 병합)
+- [x] 2단계 A-03 목록: 반경(Haversine)·정렬·검색(와일드카드 이스케이프)·is_joined·pickup_note 제외. 시드 1,000건 중앙값 약 85ms. 테스트 26개 추가(111개)
+- [x] 2단계 A-04 글 작성(같이사기): pricing.py(부담금 규칙, 전 조합 합계 검증), geo.py(Haversine), item_schemas.py(검증), items.py(응답 변환, 표시 상태), routers/items.py. 테스트 85개 통과(17초)
 
 ## 막힌 것 / 사용자 확인 필요
 
@@ -54,5 +55,9 @@
 - uv, Node는 설치됨. 셸에서 안 잡히면 `export PATH="$HOME/.local/bin:$PATH"`, Node는 `source ~/.nvm/nvm.sh`
 - `backend/.env`는 `uv run python scripts/setup_env.py`로 만든다(비밀번호를 대화에 붙여 넣지 않는다). 저장소 키는 `... setup_env.py storage`
 - 테스트는 Supabase 개발 DB에 실제로 쓴다. 테스트 계정 이메일은 `pytest-`로 시작하고(`tests/conftest.py`의 `new_email()`), 세션 시작·종료 때 그 계정의 items·reservations까지 지운다. 새 테스트 데이터도 이 계정으로 만들 것
-- 테스트 실행: `cd backend && uv run pytest -q` (약 7초). 서버: `uv run fastapi dev app/main.py`
+- 테스트 도구: `tests/conftest.py`의 `make_user(client)`는 가입+로그인을 하고 `.headers`를 준다. bcrypt가 느려(사용자 1명 ≈ 0.5초) 사용자를 공유해도 되는 테스트는 모듈 fixture(`shared_user`)를 쓴다
+- pydantic은 **생략된 필드에는 검증 함수를 돌리지 않는다**. 생략 여부가 의미 있는 필드는 `Field(validate_default=True)`를 쓴다(예: ItemCreate.lng)
+- 목록 같은 위치 의존 테스트는 `tests/helpers.py`의 `unique_location()`으로 위치를 나눠 쓰고, API로 못 만드는 상태(마감 지난 글, 성사된 글)는 `insert_item()`으로 DB에 직접 넣는다
+- 목록(A-03)은 페이지 나눔이 없다(기획서에 없음). 1,000건 응답이 약 327KB. 문제가 되면 상한을 두는 것을 검토
+- 테스트 실행: `cd backend && uv run pytest -q` (약 30초). 서버: `uv run fastapi dev app/main.py`
 - 편집기로 `.env`를 저장했는데 반영되지 않은 적이 있다. `.env`는 스크립트로만 고친다
