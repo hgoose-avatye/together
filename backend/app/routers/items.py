@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import get_current_user
 from app.errors import invalid_input
-from app.item_schemas import ItemCreate, ItemDetailOut, ItemListOut, JoinOut
+from app.cancel import cancel_item
+from app.item_schemas import ItemCreate, ItemDetailOut, ItemListOut, JoinOut, MyItemOut
 from app.items import distance_to, to_item_detail, to_item_out
 from app.join import join_item
 from app.models import Item, Reservation, User
@@ -130,3 +131,13 @@ def join(
 ) -> JoinOut:
     """몫 1개를 신청한다. 사용자는 토큰으로 정하고, 요청 본문은 없다."""
     return join_item(db, item_id, user.id)
+
+
+@router.post("/{item_id}/cancel", response_model=MyItemOut)
+def cancel(
+    item_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MyItemOut:
+    """개설자가 모집 중인 글을 취소한다. 요청 본문은 없다."""
+    return cancel_item(db, item_id, user.id)
