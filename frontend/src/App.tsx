@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import type { ReactNode } from 'react'
 import { token } from './api'
+import Auth from './pages/Auth'
 
 // 기획서 11장의 화면 4개. 각 화면은 기능을 구현하면서 채운다.
 function Placeholder({ title }: { title: string }) {
@@ -16,7 +17,7 @@ export default function App() {
     <BrowserRouter>
       <div className="mx-auto min-h-dvh max-w-[430px] bg-white">
         <Routes>
-          <Route path="/login" element={<Placeholder title="로그인, 가입" />} />
+          <Route path="/login" element={<Auth />} />
           <Route
             path="/"
             element={
