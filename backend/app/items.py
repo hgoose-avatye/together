@@ -1,15 +1,16 @@
 """글 응답을 만드는 공통 함수. 목록(A-03), 작성(A-04) 등이 함께 쓴다."""
 
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.geo import haversine_km
-from app.item_schemas import KST, ItemDetailOut, ItemOut
-from app.models import Item, User
+from app.item_schemas import KST, ItemDetailOut, ItemOut, MyItemOut, ParticipantOut
+from app.models import Item, Reservation, User
 from app.pricing import split_price
 
 
@@ -92,3 +93,35 @@ def record_failures(db: Session) -> None:
     except SQLAlchemyError:
         db.rollback()
         logger.warning("무산 기록에 실패했습니다. 요청은 계속합니다.", exc_info=True)
+
+
+def to_my_items(db: Session, items: list[Item]) -> list[MyItemOut]:
+    """개설자 본인용 글 목록(A-08, A-09 응답). 참여자는 글마다 따로 조회하지 않고 한 번에 가져온다."""
+    participants = defaultdict(list)
+    if items:
+        for item_id, joined_at, nickname in db.execute(
+            select(Reservation.item_id, Reservation.created_at, User.nickname)
+            .join(User, User.id == Reservation.user_id)
+            .where(Reservation.item_id.in_([i.id for i in items]))
+            .order_by(Reservation.id)
+        ):
+            participants[item_id].append(
+                ParticipantOut(nickname=nickname, joined_at=joined_at.astimezone(KST))
+            )
+    return [
+        MyItemOut(
+            id=i.id,
+            type=i.type,
+            title=i.title,
+            filled_slots=i.filled_slots,
+            total_slots=i.total_slots,
+            total_price=i.total_price,
+            price_per_slot=i.price_per_slot,
+            owner_share=split_price(i.total_price, i.total_slots)[1],
+            deadline=i.deadline.astimezone(KST),
+            status=display_status(i),
+            pickup_note=i.pickup_note,  # 개설자 본인에게는 항상 보인다
+            participants=participants[i.id],
+        )
+        for i in items
+    ]
