@@ -51,3 +51,24 @@ def client() -> TestClient:
 
 def new_email(tag: str = "") -> str:
     return f"{TEST_EMAIL_PREFIX}{tag}{uuid.uuid4().hex[:12]}@example.com"
+
+
+class TestUser:
+    """테스트용 가입·로그인 결과. headers를 요청에 그대로 쓰면 된다."""
+
+    __test__ = False  # pytest가 테스트 클래스로 오해하지 않게 한다
+
+    def __init__(self, id: int, email: str, nickname: str, headers: dict):
+        self.id, self.email, self.nickname, self.headers = id, email, nickname, headers
+
+
+def make_user(client: TestClient, nickname: str = "테스트유저", lat: float = 37.5563, lng: float = 126.9019) -> TestUser:
+    email = new_email()
+    signup = client.post(
+        "/auth/signup",
+        json={"email": email, "password": "password1234", "nickname": nickname, "lat": lat, "lng": lng},
+    )
+    assert signup.status_code == 201, signup.text
+    login = client.post("/auth/login", json={"email": email, "password": "password1234"})
+    token = login.json()["access_token"]
+    return TestUser(signup.json()["id"], email, nickname, {"Authorization": f"Bearer {token}"})
