@@ -205,6 +205,7 @@ class ReservationListOut(BaseModel):
 
 
 class ParticipantOut(BaseModel):
+    reservation_id: int  # 신고할 때 대상을 가리키는 값(사용자 id는 주지 않는다)
     nickname: str
     joined_at: datetime
 
@@ -226,3 +227,38 @@ class MyItemOut(BaseModel):
 
 class MyItemListOut(BaseModel):
     items: list[MyItemOut]
+
+
+REPORT_REASONS = ("INAPPROPRIATE", "FRAUD", "THREAT", "OTHER")
+
+
+class ReportCreate(BaseModel):
+    """신고(A-10). 신고 대상(target)은 받지 않는다. 서버가 글과 신청 기록으로 정한다."""
+
+    item_id: int
+    reservation_id: int | None = None  # 없으면 글 개설자, 있으면 그 신청의 참여자
+    reason: str
+    # 생략돼도 검증이 돌게 해서 '기타인데 설명 없음'을 잡는다(pydantic은 기본값을 검증하지 않는다)
+    detail: str = Field(default="", validate_default=True)
+
+    @field_validator("reason")
+    @classmethod
+    def check_reason(cls, v: str) -> str:
+        if v not in REPORT_REASONS:
+            raise ValueError("신고 사유가 올바르지 않아요")
+        return v
+
+    @field_validator("detail")
+    @classmethod
+    def check_detail(cls, v: str, info: ValidationInfo) -> str:
+        v = v.strip()
+        if len(v) > 500:
+            raise ValueError("설명은 500자 이하로 적어 주세요")
+        if info.data.get("reason") == "OTHER" and not v:
+            raise ValueError("기타를 고른 경우에는 설명을 적어 주세요")
+        return v
+
+
+class ReportOut(BaseModel):
+    id: int
+    status: str

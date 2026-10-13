@@ -563,12 +563,12 @@ CHECK (type <> 'SHARE' OR (total_slots = 1 AND total_price = 0 AND image_url IS 
 | `FILE_TOO_LARGE` | 413 | A-07 | 500KB 초과 | 사진이 너무 커요 | 다시 줄여서 업로드 |
 | `UNSUPPORTED_FILE` | 415 | A-07 | jpeg·png·webp가 아님 | jpg, png, webp만 올릴 수 있어요 | 사진 다시 선택 |
 | `UPLOAD_FAILED` | 502 | A-07 | 외부 저장소 저장 실패 | 사진을 올리지 못했어요 | 재시도 버튼 |
+| `ALREADY_REPORTED` | 409 | A-10 | 같은 글에서 같은 대상을 이미 신고함 | 이미 신고한 내용이에요 | 신고 버튼 비활성화 |
 
 **안전 묶음에서 추가될 에러 코드** — 구현 PR에서 위 표로 옮기고 `app/errors.py`와 함께 맞춥니다. 동기화 테스트는 위 표만 비교합니다.
 
 | PR | code | HTTP | 발생 API | 의미 | 화면 문구 | 후속 동작 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `ALREADY_REPORTED` | 409 | A-10 | 같은 글에서 같은 대상을 이미 신고함 | 이미 신고한 내용이에요 | 신고 버튼 비활성화 |
 | 2 | `ACCOUNT_SUSPENDED` | 403 | A-02, 인증 필요 API 전체 | 이용이 제한된 계정. 로그인에서는 비밀번호가 맞을 때만 | 이용이 제한된 계정이에요 | 토큰 삭제 후 안내 화면 |
 | 3 | `EMAIL_NOT_VERIFIED` | 403 | A-04, A-05 | 이메일 소유 확인 전 | 이메일 인증이 필요해요 | 인증 안내 화면 |
 | 3 | `INVALID_TOKEN` | 400 | A-11 | 인증 링크가 틀렸거나 만료됐거나 이미 사용됨 | 인증 링크가 올바르지 않거나 만료됐어요 | 재발송 버튼 |

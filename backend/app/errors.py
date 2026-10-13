@@ -24,6 +24,7 @@ ERRORS: dict[str, tuple[int, str]] = {
     "FILE_TOO_LARGE": (413, "사진이 너무 커요"),
     "UNSUPPORTED_FILE": (415, "jpg, png, webp만 올릴 수 있어요"),
     "UPLOAD_FAILED": (502, "사진을 올리지 못했어요"),
+    "ALREADY_REPORTED": (409, "이미 신고한 내용이에요"),
 }
 
 

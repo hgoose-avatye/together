@@ -99,14 +99,18 @@ def to_my_items(db: Session, items: list[Item]) -> list[MyItemOut]:
     """개설자 본인용 글 목록(A-08, A-09 응답). 참여자는 글마다 따로 조회하지 않고 한 번에 가져온다."""
     participants = defaultdict(list)
     if items:
-        for item_id, joined_at, nickname in db.execute(
-            select(Reservation.item_id, Reservation.created_at, User.nickname)
+        for item_id, reservation_id, joined_at, nickname in db.execute(
+            select(Reservation.item_id, Reservation.id, Reservation.created_at, User.nickname)
             .join(User, User.id == Reservation.user_id)
             .where(Reservation.item_id.in_([i.id for i in items]))
             .order_by(Reservation.id)
         ):
             participants[item_id].append(
-                ParticipantOut(nickname=nickname, joined_at=joined_at.astimezone(KST))
+                ParticipantOut(
+                    reservation_id=reservation_id,
+                    nickname=nickname,
+                    joined_at=joined_at.astimezone(KST),
+                )
             )
     return [
         MyItemOut(

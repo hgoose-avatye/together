@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { ApiError } from '../api'
+import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
+import SafetyNotice from '../components/SafetyNotice'
 import { cancelItem, myItems, myReservations } from '../endpoints'
 import { formatDateTime, won } from '../format'
 import type { ItemStatus, MyItem, Reservation } from '../types'
@@ -28,6 +30,7 @@ export default function Me() {
   const [canceling, setCanceling] = useState<MyItem | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [reporting, setReporting] = useState<ReportTarget | null>(null)
 
   // 같은 key의 응답만 쓴다. 탭을 빨리 바꿔도 늦게 온 옛 응답이 화면을 덮지 않는다.
   const key = `${tab}|${reload}`
@@ -121,7 +124,20 @@ export default function Me() {
                 <h2 className="font-semibold">{r.item.title}</h2>
                 <Badge status={r.item.status} />
               </div>
-              <p className="mt-0.5 text-sm text-gray-500">{r.item.owner_nickname}</p>
+              <p className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
+                {r.item.owner_nickname}
+                <button
+                  className="text-xs text-gray-400 underline"
+                  onClick={() =>
+                    setReporting({
+                      itemId: r.item.id,
+                      label: `${r.item.owner_nickname}님의 글 「${r.item.title}」`,
+                    })
+                  }
+                >
+                  신고
+                </button>
+              </p>
               <p className="mt-2">
                 내 부담금 <b>{won(r.item.price_per_slot)}</b>
               </p>
@@ -136,6 +152,7 @@ export default function Me() {
               ) : r.item.status === 'OPEN' ? (
                 <p className="mt-3 text-sm text-gray-500">몫이 모두 차면 만남 장소가 열려요.</p>
               ) : null}
+              {r.item.status === 'CONFIRMED' && <SafetyNotice className="mt-3" />}
             </li>
           ))}
 
@@ -152,12 +169,25 @@ export default function Me() {
               <p className="mt-1 text-sm text-gray-500">마감 {formatDateTime(it.deadline)}</p>
               <p className="mt-3 text-sm">
                 <b>신청한 사람</b>{' '}
-                {it.participants.length ? (
-                  it.participants.map((p) => p.nickname).join(', ')
-                ) : (
-                  <span className="text-gray-500">아직 없어요</span>
-                )}
+                {it.participants.length === 0 && <span className="text-gray-500">아직 없어요</span>}
               </p>
+              {it.participants.map((p) => (
+                <p key={p.reservation_id} className="mt-1 flex items-center gap-2 text-sm">
+                  {p.nickname}
+                  <button
+                    className="text-xs text-gray-400 underline"
+                    onClick={() =>
+                      setReporting({
+                        itemId: it.id,
+                        reservationId: p.reservation_id,
+                        label: `참여자 ${p.nickname} (「${it.title}」)`,
+                      })
+                    }
+                  >
+                    신고
+                  </button>
+                </p>
+              ))}
               <p className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm">
                 <b className="block">만남 장소 메모</b>
                 {it.pickup_note}
@@ -206,6 +236,16 @@ export default function Me() {
             </div>
           </div>
         </div>
+      )}
+      {reporting && (
+        <ReportDialog
+          target={reporting}
+          onClose={() => setReporting(null)}
+          onDone={(m) => {
+            setReporting(null)
+            setNotice(m)
+          }}
+        />
       )}
     </main>
   )

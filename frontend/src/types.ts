@@ -73,7 +73,7 @@ export interface MyItem {
   deadline: string
   status: ItemStatus
   pickup_note: string
-  participants: { nickname: string; joined_at: string }[]
+  participants: { reservation_id: number; nickname: string; joined_at: string }[]
 }
 
 export interface NewItem {
