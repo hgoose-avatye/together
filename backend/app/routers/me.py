@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_user
+from app.schemas import UserOut
 from app.item_schemas import (
     KST,
     MyItemListOut,
@@ -15,6 +16,18 @@ from app.items import display_status, record_failures, to_my_items
 from app.models import Item, Reservation, User
 
 router = APIRouter(prefix="/me", tags=["me"])
+
+@router.get("", response_model=UserOut)
+def me(user: User = Depends(get_current_user)) -> UserOut:
+    """지금의 내 정보. 이메일 인증 여부는 화면이 안내 띠를 보일지 정하는 데 쓴다(A-13)."""
+    return UserOut(
+        id=user.id,
+        nickname=user.nickname,
+        lat=float(user.lat),
+        lng=float(user.lng),
+        email_verified=user.email_verified_at is not None,
+    )
+
 
 # shortcut: 페이지 나눔 없음, 한 사람의 신청·글이 수백 건을 넘으면 limit/offset 추가
 
