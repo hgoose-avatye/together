@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.config import check_runtime, settings
 from app.db import get_db
 from app.errors import register_error_handlers
-from app.routers import auth, items, me, reports
+from app.routers import auth, items, me, reports, uploads
 
 check_runtime(settings)
 app = FastAPI(title="같이 API")
@@ -15,6 +15,7 @@ app.include_router(auth.router)
 app.include_router(items.router)
 app.include_router(me.router)
 app.include_router(reports.router)
+app.include_router(uploads.router)
 
 app.add_middleware(
     CORSMiddleware,

@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router'
 import { ApiError, token as session } from '../api'
 import { verifyEmail } from '../endpoints'
 
-type State = { kind: 'ready' } | { kind: 'busy' } | { kind: 'done' } | { kind: 'error'; message: string }
+type State =
+  { kind: 'ready' } | { kind: 'busy' } | { kind: 'done' } | { kind: 'error'; message: string }
 
 /**
  * 메일 링크가 여는 화면(/verify?token=…). 열기만 해서는 토큰을 쓰지 않고, 버튼을 눌러야 POST로 확인한다.

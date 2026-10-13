@@ -14,13 +14,19 @@ export const signup = (b: {
 export const login = (email: string, password: string) =>
   api<LoginResponse>('/auth/login', post({ email, password }))
 
+export const uploadImage = (blob: Blob) => {
+  const form = new FormData()
+  form.append('file', blob, 'photo.jpg')
+  return api<{ image_url: string }>('/uploads', { method: 'POST', body: form })
+}
+
 export const verifyEmail = (token: string) =>
   api<{ email_verified: boolean }>('/auth/verify-email', post({ token }))
 export const resendVerification = () =>
   api<{ sent: boolean }>('/auth/resend-verification', { method: 'POST' })
 
-export const listItems = (p: { type: string; sort: string; q: string }) => {
-  const qs = new URLSearchParams({ type: p.type, sort: p.sort })
+export const listItems = (p: { type: string; sort: string; q: string; radius: number }) => {
+  const qs = new URLSearchParams({ type: p.type, sort: p.sort, radius: String(p.radius) })
   if (p.q.trim()) qs.set('q', p.q.trim())
   return api<{ items: Item[] }>(`/items?${qs}`)
 }

@@ -83,12 +83,21 @@ export interface MyItem {
   }[]
 }
 
-export interface NewItem {
-  type: 'GROUP_BUY'
-  title: string
-  total_slots: number // 이웃에게 나눌 몫 = 나 포함 인원 - 1
-  total_price: number
-  deadline: string // 오프셋이 붙은 ISO 문자열
-  pickup_note: string
-  product_url?: string
-}
+export type NewItem =
+  | {
+      type: 'GROUP_BUY'
+      title: string
+      total_slots: number // 이웃에게 나눌 몫 = 나 포함 인원 - 1
+      total_price: number
+      deadline: string // 오프셋이 붙은 ISO 문자열
+      pickup_note: string
+      product_url?: string
+      image_url?: string
+    }
+  | {
+      type: 'SHARE' // 몫 1개, 0원, 마감(유통기한 다음 날 00:00)은 서버가 정한다
+      title: string
+      expiry_date: string // YYYY-MM-DD
+      pickup_note: string
+      image_url: string
+    }

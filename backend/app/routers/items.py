@@ -30,16 +30,17 @@ def create_item(
     db: Session = Depends(get_db),
 ) -> ItemDetailOut:
     # owner_id는 토큰의 사용자로 정한다. 본문에 owner_id가 들어 있어도 무시한다.
-    participant_price, _ = split_price(body.total_price, body.total_slots)
+    slots, price, deadline = body.resolve()  # 유형별 규칙: 나눔은 1몫, 0원, 마감은 유통기한 다음 날 00:00
+    participant_price, _ = split_price(price, slots)
     item = Item(
         owner_id=user.id,
         type=body.type,
         category=body.category,
         title=body.title,
-        total_slots=body.total_slots,
-        total_price=body.total_price,
+        total_slots=slots,
+        total_price=price,
         price_per_slot=participant_price,
-        deadline=body.deadline,
+        deadline=deadline,
         # 위치를 안 보내면 내 저장 위치(이미 반올림됨), 보내면 서버가 반올림해서 저장한다.
         lat=round_coord(body.lat) if body.lat is not None else user.lat,
         lng=round_coord(body.lng) if body.lng is not None else user.lng,
