@@ -137,7 +137,6 @@ export default function Main() {
           <h1 className="text-xl font-bold">같이</h1>
           <UserMenu
             loggedIn={loggedIn}
-            unverified={unverified}
             onLogout={() => {
               token.clear()
               setLoggedIn(false)
