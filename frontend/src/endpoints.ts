@@ -24,4 +24,10 @@ export const createItem = (b: NewItem) => api<MyItem>('/items', post(b))
 export const joinItem = (id: number) => api<JoinResult>(`/items/${id}/join`, { method: 'POST' })
 export const cancelItem = (id: number) => api<MyItem>(`/items/${id}/cancel`, { method: 'POST' })
 export const myReservations = () => api<{ reservations: Reservation[] }>('/me/reservations')
+export const createReport = (b: {
+  item_id: number
+  reservation_id: number | null
+  reason: string
+  detail: string
+}) => api<{ id: number; status: string }>('/reports', post(b))
 export const myItems = () => api<{ items: MyItem[] }>('/me/items')

@@ -26,6 +26,12 @@ def _purge_test_data() -> None:
     with engine.begin() as conn:
         conn.execute(
             text(
+                f"DELETE FROM reports WHERE reporter_id IN ({users}) "
+                f"OR target_user_id IN ({users}) OR item_id IN ({items})"
+            )
+        )
+        conn.execute(
+            text(
                 f"DELETE FROM reservations WHERE user_id IN ({users}) OR item_id IN ({items})"
             )
         )

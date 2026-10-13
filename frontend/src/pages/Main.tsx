@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ApiError, token } from '../api'
+import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
+import SafetyNotice from '../components/SafetyNotice'
 import { joinItem, listItems } from '../endpoints'
 import { remaining, won } from '../format'
 import type { Item } from '../types'
@@ -28,6 +30,7 @@ export default function Main() {
   const [confirming, setConfirming] = useState<Item | null>(null)
   const [joining, setJoining] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [reporting, setReporting] = useState<ReportTarget | null>(null)
 
   // 같은 key의 응답만 쓴다. 검색어를 빨리 바꿔도 늦게 온 옛 응답이 화면을 덮지 않는다.
   const key = `${sort}|${debouncedQ}|${reload}`
@@ -131,6 +134,12 @@ export default function Main() {
             now={now}
             busy={joining === item.id}
             onJoin={() => setConfirming(item)}
+            onReport={() =>
+              setReporting({
+                itemId: item.id,
+                label: `${item.owner_nickname}님의 글 「${item.title}」`,
+              })
+            }
           />
         ))}
       </ul>
@@ -179,6 +188,7 @@ export default function Main() {
               몫당 {won(confirming.price_per_slot)}으로 신청할까요?
             </p>
             <p className="mt-1 text-sm text-red-600">신청 후에는 취소할 수 없어요.</p>
+            <SafetyNotice className="mt-3" />
             <div className="mt-5 grid grid-cols-2 gap-2">
               <button className="rounded-lg bg-gray-100 py-3" onClick={() => setConfirming(null)}>
                 취소
@@ -193,6 +203,16 @@ export default function Main() {
           </div>
         </div>
       )}
+      {reporting && (
+        <ReportDialog
+          target={reporting}
+          onClose={() => setReporting(null)}
+          onDone={(m) => {
+            setReporting(null)
+            setNotice(m)
+          }}
+        />
+      )}
     </main>
   )
 }
@@ -202,11 +222,13 @@ function ItemCard({
   now,
   busy,
   onJoin,
+  onReport,
 }: {
   item: Item
   now: number
   busy: boolean
   onJoin: () => void
+  onReport: () => void
 }) {
   const left = remaining(item.deadline, now)
   const pct = Math.round((item.filled_slots / item.total_slots) * 100)
@@ -217,7 +239,14 @@ function ItemCard({
         <h2 className="font-semibold">{item.title}</h2>
         <span className="shrink-0 text-xs text-gray-500">{item.distance_km}km</span>
       </div>
-      <p className="mt-0.5 text-sm text-gray-500">{item.owner_nickname}</p>
+      <p className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
+        {item.owner_nickname}
+        {!item.is_mine && (
+          <button className="text-xs text-gray-400 underline" onClick={onReport}>
+            신고
+          </button>
+        )}
+      </p>
       <p className="mt-2">
         <span className="font-semibold">{won(item.price_per_slot)}</span>
         <span className="text-sm text-gray-500"> · 총 {won(item.total_price)}</span>

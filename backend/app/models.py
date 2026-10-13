@@ -102,3 +102,44 @@ class Reservation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class Report(Base):
+    """신고. 접수만 하고 자동 제재는 하지 않는다(기획서 5.9)."""
+
+    __tablename__ = "reports"
+    __table_args__ = (
+        UniqueConstraint("reporter_id", "target_user_id", "item_id"),
+        CheckConstraint(
+            "reason IN ('INAPPROPRIATE', 'FRAUD', 'THREAT', 'OTHER')", name="reason"
+        ),
+        CheckConstraint("status IN ('OPEN', 'RESOLVED')", name="status"),
+        CheckConstraint(
+            "resolution IS NULL OR resolution IN ('DISMISSED', 'SUSPENDED')",
+            name="resolution",
+        ),
+        CheckConstraint("reporter_id <> target_user_id", name="self_report"),
+        CheckConstraint(
+            "reason <> 'OTHER' OR length(btrim(detail)) > 0", name="other_needs_detail"
+        ),
+        CheckConstraint(
+            "(status = 'OPEN' AND resolution IS NULL AND resolved_at IS NULL) OR "
+            "(status = 'RESOLVED' AND resolution IS NOT NULL AND resolved_at IS NOT NULL)",
+            name="resolved_consistency",
+        ),
+        Index(None, "status", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    reporter_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    target_user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    item_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("items.id"))
+    reason: Mapped[str] = mapped_column(String(20))
+    detail: Mapped[str] = mapped_column(String(500), server_default="")
+    status: Mapped[str] = mapped_column(String(10), server_default="OPEN")
+    resolution: Mapped[str | None] = mapped_column(String(10))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolution_note: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

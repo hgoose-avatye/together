@@ -141,8 +141,9 @@ def test_my_items_with_participants_and_owner_share(client: TestClient, town):
         "자취생",
     ]  # 신청 순서
     assert all(
-        set(p) == {"nickname", "joined_at"} for p in item["participants"]
-    )  # 이메일·id는 안 나간다
+        set(p) == {"reservation_id", "nickname", "joined_at"}
+        for p in item["participants"]
+    )  # 이메일·사용자 id는 안 나간다(신청 id만)
     assert "@" not in str(item)
 
 

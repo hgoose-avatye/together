@@ -78,12 +78,12 @@ def insert_item(
         ).scalar_one()
 
 
-def insert_reservation(item_id: int, user_id: int) -> None:
+def insert_reservation(item_id: int, user_id: int) -> int:
     with engine.begin() as conn:
-        conn.execute(
-            text("INSERT INTO reservations (item_id, user_id) VALUES (:i, :u)"),
+        return conn.execute(
+            text("INSERT INTO reservations (item_id, user_id) VALUES (:i, :u) RETURNING id"),
             {"i": item_id, "u": user_id},
-        )
+        ).scalar_one()
 
 
 def insert_user(location: tuple[float, float], nickname: str = "테스트유저") -> TestUser:

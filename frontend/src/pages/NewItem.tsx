@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ApiError } from '../api'
+import SafetyNotice from '../components/SafetyNotice'
 import { createItem } from '../endpoints'
 import { splitPrice, won } from '../format'
 
@@ -179,6 +180,8 @@ export default function NewItem() {
           />
           {err('product_url')}
         </label>
+
+        <SafetyNotice />
 
         <p className="text-xs text-gray-500">
           정산은 참여하는 분들끼리 직접 해요. 같이는 금액을 받거나 관여하지 않아요.

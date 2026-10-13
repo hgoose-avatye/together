@@ -19,6 +19,7 @@ export type ErrorCode =
   | 'FILE_TOO_LARGE'
   | 'UNSUPPORTED_FILE'
   | 'UPLOAD_FAILED'
+  | 'ALREADY_REPORTED'
 
 export class ApiError extends Error {
   readonly code: ErrorCode
