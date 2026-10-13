@@ -18,12 +18,26 @@ from app.main import app  # noqa: E402
 
 TEST_EMAIL_PREFIX = "pytest-"
 
+# 테스트는 이 DB를 실제로 바꾼다. 개발 DB가 아니면 하나도 돌리지 않는다(기획서 5.11).
+# 우회 옵션은 없다. .env가 없을 때의 가짜 주소(DB를 쓰지 않는 테스트)만 검사하지 않는다.
+if (Path(__file__).resolve().parents[1] / ".env").exists():
+    from app.dbguard import assert_dev_database  # noqa: E402
+
+    assert_dev_database(engine)
+
 
 def _purge_test_data() -> None:
     """테스트가 만든 데이터를 지운다. 테스트 계정은 이메일이 pytest-로 시작한다."""
     users = f"SELECT id FROM users WHERE email LIKE '{TEST_EMAIL_PREFIX}%'"
     items = f"SELECT id FROM items WHERE owner_id IN ({users})"
     with engine.begin() as conn:
+        # 감사 기록은 운영에서는 지우지 않지만, 보호 검증을 통과한 개발 DB의 테스트 계정 것은 지운다
+        conn.execute(
+            text(
+                f"DELETE FROM admin_actions WHERE target_user_id IN ({users}) "
+                f"OR report_id IN (SELECT id FROM reports WHERE item_id IN ({items}))"
+            )
+        )
         conn.execute(
             text(
                 f"DELETE FROM reports WHERE reporter_id IN ({users}) "

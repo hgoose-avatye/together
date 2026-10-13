@@ -25,6 +25,7 @@ ERRORS: dict[str, tuple[int, str]] = {
     "UNSUPPORTED_FILE": (415, "jpg, png, webp만 올릴 수 있어요"),
     "UPLOAD_FAILED": (502, "사진을 올리지 못했어요"),
     "ALREADY_REPORTED": (409, "이미 신고한 내용이에요"),
+    "ACCOUNT_SUSPENDED": (403, "이용이 제한된 계정이에요"),
 }
 
 

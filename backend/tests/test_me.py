@@ -61,7 +61,7 @@ def test_reservations_show_only_mine_newest_first(client: TestClient, town):
     r = body["reservations"][0]
     assert set(r) == {"reservation_id", "joined_at", "item"}
     assert set(r["item"]) == {
-        "id", "type", "title", "owner_nickname", "price_per_slot", "deadline", "status", "pickup_note"
+        "id", "type", "title", "owner_nickname", "price_per_slot", "deadline", "status", "pickup_note", "owner_suspended"
     }  # fmt: skip
     assert r["item"]["owner_nickname"] == "개설자"
     assert r["joined_at"].endswith("+09:00") and r["item"]["deadline"].endswith(
@@ -141,7 +141,7 @@ def test_my_items_with_participants_and_owner_share(client: TestClient, town):
         "자취생",
     ]  # 신청 순서
     assert all(
-        set(p) == {"reservation_id", "nickname", "joined_at"}
+        set(p) == {"reservation_id", "nickname", "joined_at", "user_suspended"}
         for p in item["participants"]
     )  # 이메일·사용자 id는 안 나간다(신청 id만)
     assert "@" not in str(item)

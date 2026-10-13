@@ -23,4 +23,7 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None:  # 토큰은 유효하지만 탈퇴·삭제된 계정
         raise AppError("UNAUTHORIZED")
+    # 요청마다 현재 상태를 읽으므로 정지 전에 받은 토큰도 즉시 막힌다(기획서 5.9).
+    if user.status == "SUSPENDED":
+        raise AppError("ACCOUNT_SUSPENDED")
     return user

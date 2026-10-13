@@ -17,6 +17,17 @@ const STATUS: Record<ItemStatus, { label: string; color: string }> = {
   CANCELED: { label: '취소', color: 'bg-gray-100 text-gray-600' },
 }
 
+const SUSPENDED_TEXT = '계정 이용이 제한됐어요. 만남 전에 직접 확인해 주세요.'
+
+const SuspendedNote = ({ inline = false }: { inline?: boolean }) =>
+  inline ? (
+    <span className="text-xs text-red-600">{SUSPENDED_TEXT}</span>
+  ) : (
+    <p role="status" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      {SUSPENDED_TEXT}
+    </p>
+  )
+
 const Badge = ({ status }: { status: ItemStatus }) => (
   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS[status].color}`}>
     {STATUS[status].label}
@@ -152,6 +163,7 @@ export default function Me() {
               ) : r.item.status === 'OPEN' ? (
                 <p className="mt-3 text-sm text-gray-500">몫이 모두 차면 만남 장소가 열려요.</p>
               ) : null}
+              {r.item.status === 'CONFIRMED' && r.item.owner_suspended && <SuspendedNote />}
               {r.item.status === 'CONFIRMED' && <SafetyNotice className="mt-3" />}
             </li>
           ))}
@@ -174,6 +186,7 @@ export default function Me() {
               {it.participants.map((p) => (
                 <p key={p.reservation_id} className="mt-1 flex items-center gap-2 text-sm">
                   {p.nickname}
+                  {p.user_suspended && <SuspendedNote inline />}
                   <button
                     className="text-xs text-gray-400 underline"
                     onClick={() =>

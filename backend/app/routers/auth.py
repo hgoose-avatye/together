@@ -47,6 +47,8 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
     ok = verify_password(body.password, user.password_hash if user else dummy_hash())
     if user is None or not ok:
         raise AppError("INVALID_CREDENTIALS")
+    if user.status == "SUSPENDED":  # 비밀번호가 맞은 사람에게만 알려 정지 여부가 새지 않게 한다
+        raise AppError("ACCOUNT_SUSPENDED")
     return LoginResponse(
         access_token=create_access_token(user.id),
         expires_in=settings.jwt_expire_hours * 3600,
