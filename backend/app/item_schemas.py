@@ -1,13 +1,15 @@
 """글(items) 요청·응답 스키마. 규칙은 기획서 5.3."""
 
 import re
-from datetime import datetime, timedelta, timezone
+from typing import NamedTuple
+from datetime import date, datetime, time, timedelta, timezone
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from app.config import settings
+from app.errors import invalid_input
 
 CATEGORIES = ("FRUIT_VEG", "FOOD", "HOUSEHOLD", "ETC")
 MAX_DEADLINE_DAYS = 30
@@ -29,9 +31,12 @@ class ItemCreate(BaseModel):
     type: str
     category: str = "ETC"
     title: str
-    total_slots: int  # 이웃에게 나눌 몫 수 = 나 포함 인원 - 1
-    total_price: int
-    deadline: datetime
+    # 같이사기는 셋 다 필수. 나눔은 total_slots, total_price, deadline을 받아도 무시하고 expiry_date로 정한다.
+    # 필수 여부는 resolve()가 유형별로 검사한다.
+    total_slots: int | None = None  # 이웃에게 나눌 몫 수 = 나 포함 인원 - 1
+    total_price: int | None = None
+    deadline: datetime | None = None
+    expiry_date: date | None = None  # 나눔: 유통기한 날짜
     pickup_note: str
     product_url: str | None = None
     image_url: str | None = None
@@ -42,8 +47,7 @@ class ItemCreate(BaseModel):
     @field_validator("type")
     @classmethod
     def check_type(cls, v: str) -> str:
-        # 나눔(SHARE)은 나눔 묶음(Should)에서 추가한다.
-        if v != "GROUP_BUY":
+        if v not in ("GROUP_BUY", "SHARE"):
             raise ValueError("지원하지 않는 글 유형이에요")
         return v
 
@@ -64,21 +68,27 @@ class ItemCreate(BaseModel):
 
     @field_validator("total_slots")
     @classmethod
-    def check_slots(cls, v: int) -> int:
-        if not 1 <= v <= 20:
+    def check_slots(cls, v: int | None, info: ValidationInfo) -> int | None:
+        if info.data.get("type") == "SHARE":
+            return v  # 나눔은 보내도 무시한다
+        if v is not None and not 1 <= v <= 20:
             raise ValueError("인원은 나 포함 2~21명이어야 해요")
         return v
 
     @field_validator("total_price")
     @classmethod
-    def check_price(cls, v: int) -> int:
-        if not 0 <= v <= 1_000_000:
+    def check_price(cls, v: int | None, info: ValidationInfo) -> int | None:
+        if info.data.get("type") == "SHARE":
+            return v
+        if v is not None and not 0 <= v <= 1_000_000:
             raise ValueError("총 가격은 0원 이상 1,000,000원 이하여야 해요")
         return v
 
     @field_validator("deadline")
     @classmethod
-    def check_deadline(cls, v: datetime) -> datetime:
+    def check_deadline(cls, v: datetime | None, info: ValidationInfo) -> datetime | None:
+        if v is None or info.data.get("type") == "SHARE":
+            return v
         if v.tzinfo is None:
             raise ValueError("마감 시각에 시간대가 필요해요")
         now = datetime.now(timezone.utc)
@@ -137,6 +147,40 @@ class ItemCreate(BaseModel):
         if "lat" in info.data and (v is None) != (info.data["lat"] is None):
             raise ValueError("위도와 경도를 함께 보내 주세요")
         return v
+
+
+    def resolve(self) -> "ResolvedItem":
+        """유형별 규칙을 적용해 저장할 값을 정한다(기획서 5.3). 위반하면 field가 붙은 INVALID_INPUT."""
+        if self.type == "SHARE":
+            if self.expiry_date is None:
+                raise invalid_input("유통기한 날짜를 입력해 주세요", "expiry_date")
+            today = datetime.now(KST).date()
+            if not today <= self.expiry_date <= today + timedelta(days=MAX_DEADLINE_DAYS):
+                raise invalid_input(
+                    f"유통기한은 오늘부터 {MAX_DEADLINE_DAYS}일 이내여야 해요", "expiry_date"
+                )
+            if self.image_url is None:
+                raise invalid_input("나눔에는 사진이 필요해요", "image_url")
+            if self.product_url is not None:
+                raise invalid_input("나눔에는 상품 링크를 붙일 수 없어요", "product_url")
+            # 몫 1개, 0원은 서버가 정한다. 마감은 유통기한 다음 날 00:00(KST)부터 신청 불가.
+            return ResolvedItem(
+                1, 0, datetime.combine(self.expiry_date + timedelta(days=1), time(0), KST)
+            )
+        for name, label in (
+            ("total_slots", "인원을 입력해 주세요"),
+            ("total_price", "총 가격을 입력해 주세요"),
+            ("deadline", "마감 시각을 입력해 주세요"),
+        ):
+            if getattr(self, name) is None:
+                raise invalid_input(label, name)
+        return ResolvedItem(self.total_slots, self.total_price, self.deadline)
+
+
+class ResolvedItem(NamedTuple):
+    total_slots: int
+    total_price: int
+    deadline: datetime
 
 
 class ItemOut(BaseModel):

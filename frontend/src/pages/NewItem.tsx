@@ -1,17 +1,27 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '../api'
+import PhotoPicker from '../components/PhotoPicker'
 import SafetyNotice from '../components/SafetyNotice'
 import { createItem } from '../endpoints'
 import { splitPrice, won } from '../format'
 
 const pad = (n: number) => String(n).padStart(2, '0')
+const toDateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 /** <input type="datetime-local">이 쓰는 'YYYY-MM-DDTHH:mm' (브라우저 시간대) */
 const toLocalInput = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 
 export default function NewItem() {
   const nav = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const isShare = params.get('type') === 'SHARE' // 현재 탭의 유형이 선택된다(기획서 11장)
+  const [photo, setPhoto] = useState<string | null>(null)
+  const [expiry, setExpiry] = useState(() => toDateInput(new Date()))
+  const [dateBounds] = useState(() => ({
+    min: toDateInput(new Date()),
+    max: toDateInput(new Date(Date.now() + 30 * 24 * 3600 * 1000)),
+  }))
   const [title, setTitle] = useState('')
   const [price, setPrice] = useState('')
   const [people, setPeople] = useState('3') // 나 포함 인원
@@ -45,15 +55,30 @@ export default function NewItem() {
     setProblem(null)
     setBusy(true)
     try {
-      await createItem({
-        type: 'GROUP_BUY',
-        title,
-        total_slots: n - 1, // 서버는 '이웃에게 나눌 몫' = 나 포함 인원 - 1을 받는다
-        total_price: total,
-        deadline: new Date(deadline).toISOString(),
-        pickup_note: note,
-        ...(url.trim() && { product_url: url.trim() }),
-      })
+      if (isShare) {
+        if (!photo) {
+          setProblem({ message: '나눔에는 사진이 필요해요', field: 'image_url' })
+          return
+        }
+        await createItem({
+          type: 'SHARE',
+          title,
+          expiry_date: expiry,
+          pickup_note: note,
+          image_url: photo,
+        })
+      } else {
+        await createItem({
+          type: 'GROUP_BUY',
+          title,
+          total_slots: n - 1, // 서버는 '이웃에게 나눌 몫' = 나 포함 인원 - 1을 받는다
+          total_price: total,
+          deadline: new Date(deadline).toISOString(),
+          pickup_note: note,
+          ...(url.trim() && { product_url: url.trim() }),
+          ...(photo && { image_url: photo }),
+        })
+      }
       nav('/', { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
@@ -80,7 +105,25 @@ export default function NewItem() {
       <Link to="/" className="text-sm text-gray-500">
         ← 목록으로
       </Link>
-      <h1 className="mt-2 text-xl font-bold">같이 살 사람 모으기</h1>
+      <h1 className="mt-2 text-xl font-bold">
+        {isShare ? '남은 걸 나눠요' : '같이 살 사람 모으기'}
+      </h1>
+      <div className="mt-3 grid grid-cols-2 rounded-lg bg-gray-100 p-1 text-center text-sm">
+        {(['GROUP_BUY', 'SHARE'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => {
+              setPhoto(null)
+              setProblem(null)
+              setParams(t === 'SHARE' ? { type: 'SHARE' } : {}, { replace: true })
+            }}
+            className={`rounded-md py-2 font-medium ${(t === 'SHARE') === isShare ? 'bg-white shadow' : 'text-gray-500'}`}
+          >
+            {t === 'SHARE' ? '같이 마감하기' : '같이 사기'}
+          </button>
+        ))}
+      </div>
 
       <form onSubmit={submit} className="mt-5 space-y-4">
         <label className="block">
@@ -96,65 +139,90 @@ export default function NewItem() {
           {err('title')}
         </label>
 
-        <label className="block">
-          총 가격 (원)
-          <input
-            className={box}
-            type="number"
-            inputMode="numeric"
-            required
-            min={0}
-            max={1000000}
-            step={1}
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-          />
-          {err('total_price')}
-        </label>
-
-        <label className="block">
-          나 포함 몇 명이서 나눌까요?
-          <input
-            className={box}
-            type="number"
-            inputMode="numeric"
-            required
-            min={2}
-            max={21}
-            value={people}
-            onChange={(e) => setPeople(e.target.value)}
-          />
-          <span className="mt-1 block text-xs text-gray-500">나도 한 몫을 가져가요. 2~21명</span>
-          {err('total_slots')}
-        </label>
-
-        <p className="rounded-lg bg-blue-50 px-3 py-3 text-sm" aria-live="polite">
-          {split && n >= 2 ? (
-            <>
-              참여자 {n - 1}명 × <b>{won(split.participant)}</b> · 내 몫 <b>{won(split.owner)}</b> ·
-              총 {won(total)}
+        {isShare ? (
+          <>
+            <label className="block">
+              유통기한
+              <input
+                className={box}
+                type="date"
+                required
+                min={dateBounds.min}
+                max={dateBounds.max}
+                value={expiry}
+                onChange={(e) => setExpiry(e.target.value)}
+              />
               <span className="mt-1 block text-xs text-gray-500">
-                10원 단위 아래로 남는 금액은 글을 올린 사람이 내요.
+                유통기한 다음 날 00:00부터 신청할 수 없어요. 1몫, 0원으로 올라가요.
               </span>
-            </>
-          ) : (
-            '가격과 인원을 입력하면 각자 낼 금액이 보여요'
-          )}
-        </p>
+              {err('expiry_date')}
+            </label>
+          </>
+        ) : (
+          <>
+            <label className="block">
+              총 가격 (원)
+              <input
+                className={box}
+                type="number"
+                inputMode="numeric"
+                required
+                min={0}
+                max={1000000}
+                step={1}
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+              {err('total_price')}
+            </label>
 
-        <label className="block">
-          모집 마감
-          <input
-            className={box}
-            type="datetime-local"
-            required
-            min={bounds.min}
-            max={bounds.max}
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-          />
-          {err('deadline')}
-        </label>
+            <label className="block">
+              나 포함 몇 명이서 나눌까요?
+              <input
+                className={box}
+                type="number"
+                inputMode="numeric"
+                required
+                min={2}
+                max={21}
+                value={people}
+                onChange={(e) => setPeople(e.target.value)}
+              />
+              <span className="mt-1 block text-xs text-gray-500">
+                나도 한 몫을 가져가요. 2~21명
+              </span>
+              {err('total_slots')}
+            </label>
+
+            <p className="rounded-lg bg-blue-50 px-3 py-3 text-sm" aria-live="polite">
+              {split && n >= 2 ? (
+                <>
+                  참여자 {n - 1}명 × <b>{won(split.participant)}</b> · 내 몫{' '}
+                  <b>{won(split.owner)}</b> · 총 {won(total)}
+                  <span className="mt-1 block text-xs text-gray-500">
+                    10원 단위 아래로 남는 금액은 글을 올린 사람이 내요.
+                  </span>
+                </>
+              ) : (
+                '가격과 인원을 입력하면 각자 낼 금액이 보여요'
+              )}
+            </p>
+
+            <label className="block">
+              모집 마감
+              <input
+                className={box}
+                type="datetime-local"
+                required
+                min={bounds.min}
+                max={bounds.max}
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+              {err('deadline')}
+            </label>
+          </>
+        )}
 
         <label className="block">
           만남 장소 메모
@@ -173,23 +241,32 @@ export default function NewItem() {
           {err('pickup_note')}
         </label>
 
-        <label className="block">
-          상품 링크 (선택)
-          <input
-            className={box}
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://"
-          />
-          {err('product_url')}
-        </label>
+        {!isShare && (
+          <label className="block">
+            상품 링크 (선택)
+            <input
+              className={box}
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://"
+            />
+            {err('product_url')}
+          </label>
+        )}
+
+        <div>
+          <PhotoPicker value={photo} onChange={setPhoto} required={isShare} />
+          {err('image_url')}
+        </div>
 
         <SafetyNotice />
 
-        <p className="text-xs text-gray-500">
-          정산은 참여하는 분들끼리 직접 해요. 같이는 금액을 받거나 관여하지 않아요.
-        </p>
+        {!isShare && (
+          <p className="text-xs text-gray-500">
+            정산은 참여하는 분들끼리 직접 해요. 같이는 금액을 받거나 관여하지 않아요.
+          </p>
+        )}
 
         {problem && !problem.field && (
           <p role="alert" className="text-sm text-red-600">

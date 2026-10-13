@@ -231,7 +231,7 @@ def test_concurrent_resends_send_once(client: TestClient, outbox, round_):
 # ---------- 미인증 권한 ----------
 
 # 인증이 필요한 모든 API는 여기에 분류돼 있어야 한다. 새 라우트를 추가하면 이 테스트가 실패해 어느 쪽인지 정하게 한다.
-NEEDS_VERIFIED = {("POST", "/items"), ("POST", "/items/{item_id}/join")}
+NEEDS_VERIFIED = {("POST", "/items"), ("POST", "/items/{item_id}/join"), ("POST", "/uploads")}
 ALLOWED_UNVERIFIED = {
     ("GET", "/items"),
     ("POST", "/items/{item_id}/cancel"),

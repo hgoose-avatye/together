@@ -66,4 +66,5 @@
 - 테스트와 시연 스크립트의 DB 변경은 `app/dbguard.py`의 `assert_dev_database` 통과가 전제다. 우회 옵션이나 허용 목록 밖의 id를 추가하지 않는다. 운영 도구 `scripts/admin.py`만 예외이고 `--yes`와 `admin_actions` 기록을 지킨다.
 - 글 작성(A-04)과 몫 신청(A-05)은 `get_verified_user`를 쓴다. 인증이 필요한 라우트를 추가하면 `tests/test_email_verification.py`의 분류 표(`NEEDS_VERIFIED`/`ALLOWED_UNVERIFIED`)에 넣어 미인증 허용 여부를 정한다. 인증 토큰은 해시만 저장하고 원문을 로그·응답에 남기지 않는다(개발 console 메일 제외).
 - 테스트에서 사용자를 만들 때 `insert_user`/`make_user`는 기본이 **인증된** 계정이다. 미인증이 필요하면 `verified=False`.
+- 사진은 `app/uploads.py`로만 저장한다(용량 → 매직 바이트 → UUID 파일명). 테스트는 `put_object`를 바꿔 실제 Storage를 건드리지 않는다. 나눔(SHARE)의 몫·가격·마감은 서버가 정하고 클라이언트 값을 무시한다(`ItemCreate.resolve`).
 - 신고(A-10)의 대상은 클라이언트가 보내지 않고 서버가 글과 신청 기록으로 정한다. 신고 접수만으로 자동 정지·숨김 같은 제재를 하지 않는다(기획서 5.9). 참여자 신고는 권한(NOT_OWNER)을 먼저 확인해 신청 기록의 존재가 새지 않게 한다.

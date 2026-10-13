@@ -215,7 +215,6 @@ BAD_IMAGES = [
 @pytest.mark.parametrize(
     "override, field",
     [
-        ({"type": "SHARE"}, "type"),  # 나눔은 나눔 묶음에서 추가한다
         ({"type": "X"}, "type"),
         ({"category": "TOYS"}, "category"),
         ({"title": ""}, "title"),

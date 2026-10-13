@@ -4,7 +4,7 @@ import { ApiError } from '../api'
 import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
 import SafetyNotice from '../components/SafetyNotice'
 import { cancelItem, myItems, myReservations } from '../endpoints'
-import { formatDateTime, won } from '../format'
+import { formatDateTime, untilDate, won } from '../format'
 import type { ItemStatus, MyItem, Reservation } from '../types'
 
 type Tab = 'reservations' | 'items'
@@ -28,9 +28,10 @@ const SuspendedNote = ({ inline = false }: { inline?: boolean }) =>
     </p>
   )
 
-const Badge = ({ status }: { status: ItemStatus }) => (
+// 나눔 글의 무산(FAILED)은 "무산" 대신 "마감"으로 보여 준다(기획서 5.4).
+const Badge = ({ status, type }: { status: ItemStatus; type: string }) => (
   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS[status].color}`}>
-    {STATUS[status].label}
+    {status === 'FAILED' && type === 'SHARE' ? '마감' : STATUS[status].label}
   </span>
 )
 
@@ -133,7 +134,7 @@ export default function Me() {
             <li key={r.reservation_id} className="rounded-xl border border-gray-200 p-4">
               <div className="flex items-start justify-between gap-2">
                 <h2 className="font-semibold">{r.item.title}</h2>
-                <Badge status={r.item.status} />
+                <Badge status={r.item.status} type={r.item.type} />
               </div>
               <p className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
                 {r.item.owner_nickname}
@@ -150,10 +151,19 @@ export default function Me() {
                 </button>
               </p>
               <p className="mt-2">
-                내 부담금 <b>{won(r.item.price_per_slot)}</b>
+                {r.item.type === 'SHARE' ? (
+                  <b>무료 나눔</b>
+                ) : (
+                  <>
+                    내 부담금 <b>{won(r.item.price_per_slot)}</b>
+                  </>
+                )}
               </p>
               <p className="mt-1 text-sm text-gray-500">
-                마감 {formatDateTime(r.item.deadline)} · 신청 {formatDateTime(r.joined_at)}
+                {r.item.type === 'SHARE'
+                  ? untilDate(r.item.deadline)
+                  : `마감 ${formatDateTime(r.item.deadline)}`}{' '}
+                · 신청 {formatDateTime(r.joined_at)}
               </p>
               {r.item.pickup_note ? (
                 <p className="mt-3 rounded-lg bg-green-50 p-3 text-sm">
@@ -172,13 +182,25 @@ export default function Me() {
             <li key={it.id} className="rounded-xl border border-gray-200 p-4">
               <div className="flex items-start justify-between gap-2">
                 <h2 className="font-semibold">{it.title}</h2>
-                <Badge status={it.status} />
+                <Badge status={it.status} type={it.type} />
               </div>
               <p className="mt-2 text-sm">
-                몫 {it.filled_slots}/{it.total_slots} · 참여자 {won(it.price_per_slot)} · 내 몫{' '}
-                <b>{won(it.owner_share)}</b> · 총 {won(it.total_price)}
+                {it.type === 'SHARE' ? (
+                  <>
+                    무료 나눔 · 몫 {it.filled_slots}/{it.total_slots}
+                  </>
+                ) : (
+                  <>
+                    몫 {it.filled_slots}/{it.total_slots} · 참여자 {won(it.price_per_slot)} · 내 몫{' '}
+                    <b>{won(it.owner_share)}</b> · 총 {won(it.total_price)}
+                  </>
+                )}
               </p>
-              <p className="mt-1 text-sm text-gray-500">마감 {formatDateTime(it.deadline)}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {it.type === 'SHARE'
+                  ? untilDate(it.deadline)
+                  : `마감 ${formatDateTime(it.deadline)}`}
+              </p>
               <p className="mt-3 text-sm">
                 <b>신청한 사람</b>{' '}
                 {it.participants.length === 0 && <span className="text-gray-500">아직 없어요</span>}

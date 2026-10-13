@@ -4,11 +4,13 @@ import { ApiError, token } from '../api'
 import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
 import SafetyNotice from '../components/SafetyNotice'
 import { joinItem, listItems } from '../endpoints'
-import { remaining, won } from '../format'
+import { remaining, untilDate, won } from '../format'
 import type { Item } from '../types'
 
 type Result = { key: string; items?: Item[]; error?: string }
 type Sort = 'distance' | 'deadline'
+type Tab = 'GROUP_BUY' | 'SHARE'
+const RADII = [3, 5] as const
 
 function useDebounced<T>(value: T, ms: number) {
   const [v, setV] = useState(value)
@@ -21,7 +23,11 @@ function useDebounced<T>(value: T, ms: number) {
 
 export default function Main() {
   const nav = useNavigate()
-  const [sort, setSort] = useState<Sort>('distance')
+  const [tab, setTab] = useState<Tab>('GROUP_BUY')
+  const [sortChoice, setSortChoice] = useState<Sort | null>(null)
+  // 정렬을 고르기 전에는 탭마다 기본값을 쓴다: 같이사기는 가까운 순, 나눔은 유통기한 임박 순(기획서 F-07)
+  const sort: Sort = sortChoice ?? (tab === 'SHARE' ? 'deadline' : 'distance')
+  const [radius, setRadius] = useState<(typeof RADII)[number]>(5)
   const [q, setQ] = useState('')
   const debouncedQ = useDebounced(q, 300)
   const [reload, setReload] = useState(0)
@@ -33,10 +39,10 @@ export default function Main() {
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
 
   // 같은 key의 응답만 쓴다. 검색어를 빨리 바꿔도 늦게 온 옛 응답이 화면을 덮지 않는다.
-  const key = `${sort}|${debouncedQ}|${reload}`
+  const key = `${tab}|${sort}|${radius}|${debouncedQ}|${reload}`
   useEffect(() => {
     let stale = false
-    listItems({ type: 'GROUP_BUY', sort, q: debouncedQ })
+    listItems({ type: tab, sort, radius, q: debouncedQ })
       .then((r) => !stale && setResult({ key, items: r.items }))
       .catch(
         (e) =>
@@ -46,7 +52,7 @@ export default function Main() {
     return () => {
       stale = true
     }
-  }, [key, sort, debouncedQ])
+  }, [key, tab, sort, radius, debouncedQ])
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000)
@@ -108,16 +114,43 @@ export default function Main() {
           placeholder="품목을 검색해 보세요"
           className="mt-3 w-full rounded-lg bg-gray-100 px-3 py-2.5"
         />
-        <div className="mt-2 flex gap-2 text-sm">
+        <div className="mt-3 grid grid-cols-2 rounded-lg bg-gray-100 p-1 text-center text-sm">
+          {(['GROUP_BUY', 'SHARE'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded-md py-1.5 font-medium ${tab === t ? 'bg-white shadow' : 'text-gray-500'}`}
+            >
+              {t === 'SHARE' ? '같이 마감하기' : '같이 사기'}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           {(['distance', 'deadline'] as const).map((s) => (
             <button
               key={s}
-              onClick={() => setSort(s)}
+              onClick={() => setSortChoice(s)}
               className={`rounded-full px-3 py-1 ${sort === s ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
             >
-              {s === 'distance' ? '가까운 순' : '마감 임박 순'}
+              {s === 'distance'
+                ? '가까운 순'
+                : tab === 'SHARE'
+                  ? '유통기한 임박 순'
+                  : '마감 임박 순'}
             </button>
           ))}
+          <span className="ml-auto flex gap-1" role="group" aria-label="반경">
+            {RADII.map((r) => (
+              <button
+                key={r}
+                onClick={() => setRadius(r)}
+                aria-pressed={radius === r}
+                className={`rounded-full px-3 py-1 ${radius === r ? 'bg-gray-800 text-white' : 'bg-gray-100'}`}
+              >
+                {r}km
+              </button>
+            ))}
+          </span>
         </div>
       </header>
 
@@ -160,7 +193,7 @@ export default function Main() {
             {debouncedQ ? '검색 결과가 없어요' : '근처에 글이 없어요'}
           </p>
           <Link
-            to="/new"
+            to={tab === 'SHARE' ? '/new?type=SHARE' : '/new'}
             className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white"
           >
             글쓰기
@@ -170,7 +203,7 @@ export default function Main() {
 
       <div className="pointer-events-none sticky bottom-6 mt-6 flex justify-end px-4">
         <Link
-          to="/new"
+          to={tab === 'SHARE' ? '/new?type=SHARE' : '/new'}
           aria-label="글쓰기"
           className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-3xl text-white shadow-lg"
         >
@@ -189,7 +222,9 @@ export default function Main() {
           >
             <p className="text-lg font-semibold">{confirming.title}</p>
             <p className="mt-2 text-gray-700">
-              몫당 {won(confirming.price_per_slot)}으로 신청할까요?
+              {confirming.type === 'SHARE'
+                ? '무료로 받을까요?'
+                : `몫당 ${won(confirming.price_per_slot)}으로 신청할까요?`}
             </p>
             <p className="mt-1 text-sm text-red-600">신청 후에는 취소할 수 없어요.</p>
             <SafetyNotice className="mt-3" />
@@ -235,10 +270,19 @@ function ItemCard({
   onReport: () => void
 }) {
   const left = remaining(item.deadline, now)
+  const share = item.type === 'SHARE'
   const pct = Math.round((item.filled_slots / item.total_slots) * 100)
   const disabled = busy || item.is_joined || left === null
   return (
     <li className="rounded-xl border border-gray-200 p-4">
+      {item.image_url && (
+        <img
+          src={item.image_url}
+          alt={item.title}
+          loading="lazy"
+          className={`mb-3 w-full rounded-lg object-cover ${share ? 'h-56' : 'h-32'}`}
+        />
+      )}
       <div className="flex items-start justify-between gap-2">
         <h2 className="font-semibold">{item.title}</h2>
         <span className="shrink-0 text-xs text-gray-500">{item.distance_km}km</span>
@@ -252,10 +296,16 @@ function ItemCard({
         )}
       </p>
       <p className="mt-2">
-        <span className="font-semibold">{won(item.price_per_slot)}</span>
-        <span className="text-sm text-gray-500"> · 총 {won(item.total_price)}</span>
+        {share ? (
+          <span className="font-semibold">무료 나눔</span>
+        ) : (
+          <>
+            <span className="font-semibold">{won(item.price_per_slot)}</span>
+            <span className="text-sm text-gray-500"> · 총 {won(item.total_price)}</span>
+          </>
+        )}
       </p>
-      <div className="mt-2 flex items-center gap-2 text-sm">
+      <div className={`mt-2 items-center gap-2 text-sm ${share ? 'hidden' : 'flex'}`}>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
           <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
         </div>
@@ -265,7 +315,7 @@ function ItemCard({
       </div>
       <div className="mt-3 flex items-center justify-between gap-2">
         <span className={`text-sm ${left ? 'text-gray-600' : 'text-red-600'}`}>
-          {left ?? '마감'}
+          {left === null ? '마감' : share ? untilDate(item.deadline) : left}
         </span>
         <div className="flex items-center gap-2">
           {item.product_url && (
@@ -284,7 +334,15 @@ function ItemCard({
               onClick={onJoin}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-gray-300"
             >
-              {item.is_joined ? '신청함' : busy ? '신청 중…' : '신청'}
+              {item.is_joined
+                ? share
+                  ? '받음'
+                  : '신청함'
+                : busy
+                  ? '신청 중…'
+                  : share
+                    ? '받기'
+                    : '신청'}
             </button>
           )}
         </div>
