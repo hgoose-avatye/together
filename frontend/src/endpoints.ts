@@ -25,8 +25,19 @@ export const verifyEmail = (token: string) =>
 export const resendVerification = () =>
   api<{ sent: boolean }>('/auth/resend-verification', { method: 'POST' })
 
-export const listItems = (p: { type: string; sort: string; q: string; radius: number }) => {
+export const listItems = (p: {
+  type: string
+  sort: string
+  q: string
+  radius: number
+  lat?: number // 로그인 없이 둘러볼 때의 기준 위치
+  lng?: number
+}) => {
   const qs = new URLSearchParams({ type: p.type, sort: p.sort, radius: String(p.radius) })
+  if (p.lat !== undefined && p.lng !== undefined) {
+    qs.set('lat', String(p.lat))
+    qs.set('lng', String(p.lng))
+  }
   if (p.q.trim()) qs.set('q', p.q.trim())
   return api<{ items: Item[] }>(`/items?${qs}`)
 }

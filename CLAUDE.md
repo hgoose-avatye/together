@@ -27,6 +27,7 @@
 - 백엔드 테스트: `cd backend && uv run pytest -q`
 - 마이그레이션: `cd backend && uv run alembic upgrade head` (생성은 `uv run alembic revision --autogenerate -m "..."`)
 - 동시성 시연: 서버를 띄운 뒤 `cd backend && uv run python scripts/concurrency_test.py --cleanup` (pytest의 `tests/test_join_concurrency.py`와는 별개: 이쪽은 실제 HTTP)
+- 목록(A-03)만 로그인 없이 조회된다(`get_optional_user`, 위치 `lat`/`lng` 필수). 나머지 API는 `get_current_user`를 거친다. 목록 응답에 `pickup_note` 등 만남 정보를 넣지 않는다. 로그인 필요 화면은 `RequireAuth`로 감싸 `?next=`로 돌아오게 한다.
 - 인증 메일: 방식은 `uv run python scripts/setup_env.py mail console|mailpit|gmail`로 바꾼다(비밀번호 입력은 숨김, 바꾼 뒤 서버 재시작). 로컬 메일함은 `mailpit --listen 127.0.0.1:8025 --smtp 127.0.0.1:1025` 후 http://localhost:8025. 자세히는 `docs/mail-setup.md`. pytest는 메일을 console로 고정한다
 - 시드 데이터: `cd backend && uv run python scripts/seed.py`(개발 DB를 지우고 1,000건을 새로 넣음, `--clean`으로 시드·데모 계정만 삭제). 시연 계정 `demo-owner@example.com`, `demo-guest@example.com`
 - 프론트 실행: `cd frontend && npm run dev`

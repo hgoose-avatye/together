@@ -5,7 +5,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user, get_verified_user
+from app.deps import get_current_user, get_optional_user, get_verified_user
 from app.errors import invalid_input
 from app.cancel import cancel_item
 from app.item_schemas import ItemCreate, ItemDetailOut, ItemListOut, JoinOut, MyItemOut
@@ -67,7 +67,7 @@ def list_items(
     q: str | None = Query(default=None, max_length=50),
     lat: float | None = Query(default=None, ge=-90, le=90),
     lng: float | None = Query(default=None, ge=-180, le=180),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ) -> ItemListOut:
     """모집 중이고 마감 전인 글만 보여 준다. pickup_note는 응답에 넣지 않는다(ItemOut)."""
@@ -80,17 +80,22 @@ def list_items(
     if (lat is None) != (lng is None):
         raise invalid_input("위도와 경도를 함께 보내 주세요", "lng" if lat is not None else "lat")
 
-    # 거리 기준점: 보낸 좌표(서버가 반올림) 또는 내 저장 위치
+    # 거리 기준점: 보낸 좌표(서버가 반올림) 또는 내 저장 위치. 로그인 없이 조회하면 좌표가 꼭 필요하다.
     if lat is not None and lng is not None:
         origin = (float(round_coord(lat)), float(round_coord(lng)))
-    else:
+    elif user is not None:
         origin = (float(user.lat), float(user.lng))
+    else:
+        raise invalid_input("위치가 필요해요. 동네를 선택해 주세요", "lat")
 
     # DB에서는 대략적인 사각형 범위로 먼저 줄이고, 정확한 거리 계산은 파이썬에서 한다.
     dlat = radius / KM_PER_DEGREE + 0.02
     dlng = radius / (KM_PER_DEGREE * max(cos(radians(origin[0])), 0.01)) + 0.02
 
-    joined = exists().where(Reservation.item_id == Item.id, Reservation.user_id == user.id)
+    # 로그인하지 않았으면 내 글도 신청한 글도 없다(user_id가 NULL이면 일치하는 행이 없다)
+    joined = exists().where(
+        Reservation.item_id == Item.id, Reservation.user_id == (user.id if user else None)
+    )
     stmt = (
         select(Item, User, joined)
         .join(User, User.id == Item.owner_id)

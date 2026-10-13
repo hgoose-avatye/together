@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { NEIGHBORHOODS } from '../neighborhoods'
 import { ApiError, token } from '../api'
 import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
 import SafetyNotice from '../components/SafetyNotice'
+import UserMenu from '../components/UserMenu'
 import { getMe, joinItem, listItems } from '../endpoints'
 import { remaining, untilDate, won } from '../format'
 import type { Item } from '../types'
@@ -11,6 +13,18 @@ type Result = { key: string; items?: Item[]; error?: string }
 type Sort = 'distance' | 'deadline'
 type Tab = 'GROUP_BUY' | 'SHARE'
 const RADII = [3, 5] as const
+const GUEST_HOOD_KEY = 'gachi_guest_hood'
+
+// 로그인 전에 고른 동네는 기억해 둔다. 저장소를 못 쓰는 브라우저면 기본 동네로 둘러본다.
+function loadGuestHood(): string {
+  try {
+    const saved = localStorage.getItem(GUEST_HOOD_KEY)
+    if (saved && NEIGHBORHOODS.some((n) => n.name === saved)) return saved
+  } catch {
+    /* 저장소를 못 쓰면 기본값 */
+  }
+  return NEIGHBORHOODS[0].name
+}
 
 function useDebounced<T>(value: T, ms: number) {
   const [v, setV] = useState(value)
@@ -23,6 +37,8 @@ function useDebounced<T>(value: T, ms: number) {
 
 export default function Main() {
   const nav = useNavigate()
+  const [loggedIn, setLoggedIn] = useState(() => !!token.get())
+  const [guestHood, setGuestHood] = useState(loadGuestHood)
   const [tab, setTab] = useState<Tab>('GROUP_BUY')
   const [sortChoice, setSortChoice] = useState<Sort | null>(null)
   // 정렬을 고르기 전에는 탭마다 기본값을 쓴다: 같이사기는 가까운 순, 나눔은 유통기한 임박 순(기획서 F-07)
@@ -40,6 +56,7 @@ export default function Main() {
   // 지금의 인증 여부는 서버에 물어본다(다른 기기에서 인증했을 수 있다). 모르거나 실패하면 띠를 보이지 않는다.
   const [unverified, setUnverified] = useState(false)
   useEffect(() => {
+    if (!loggedIn) return
     let stale = false
     getMe()
       .then((u) => !stale && setUnverified(!u.email_verified))
@@ -47,23 +64,39 @@ export default function Main() {
     return () => {
       stale = true
     }
-  }, [])
+  }, [loggedIn])
+
+  // 로그인이 필요한 일은 로그인 화면으로 보낸다. 로그인하면 이 화면으로 돌아온다(기획서 11장).
+  const toLogin = () => nav('/login?next=%2F')
 
   // 같은 key의 응답만 쓴다. 검색어를 빨리 바꿔도 늦게 온 옛 응답이 화면을 덮지 않는다.
-  const key = `${tab}|${sort}|${radius}|${debouncedQ}|${reload}`
+  const key = `${loggedIn ? 'me' : guestHood}|${tab}|${sort}|${radius}|${debouncedQ}|${reload}`
   useEffect(() => {
     let stale = false
-    listItems({ type: tab, sort, radius, q: debouncedQ })
+    // 로그인했으면 내 저장 위치가 기준이고, 아니면 고른 동네의 좌표를 보낸다
+    const hood = NEIGHBORHOODS.find((n) => n.name === guestHood) ?? NEIGHBORHOODS[0]
+    listItems({
+      type: tab,
+      sort,
+      radius,
+      q: debouncedQ,
+      ...(!loggedIn && { lat: hood.lat, lng: hood.lng }),
+    })
       .then((r) => !stale && setResult({ key, items: r.items }))
-      .catch(
-        (e) =>
-          !stale &&
-          setResult({ key, error: e instanceof ApiError ? e.message : '목록을 불러오지 못했어요' }),
-      )
+      .catch((e) => {
+        if (stale) return
+        if (e instanceof ApiError && e.field === 'lat' && loggedIn) {
+          // 저장된 토큰이 더는 쓸 수 없는 경우(만료 등): 로그인 전 상태로 바꿔 다시 불러온다
+          token.clear()
+          setLoggedIn(false)
+          return
+        }
+        setResult({ key, error: e instanceof ApiError ? e.message : '목록을 불러오지 못했어요' })
+      })
     return () => {
       stale = true
     }
-  }, [key, tab, sort, radius, debouncedQ])
+  }, [key, tab, sort, radius, debouncedQ, loggedIn, guestHood])
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000)
@@ -102,20 +135,15 @@ export default function Main() {
       <header className="sticky top-0 z-10 bg-white px-4 pt-4 pb-3 shadow-sm">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">같이</h1>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link to="/me" className="font-medium text-blue-600">
-              내 활동
-            </Link>
-            <button
-              className="text-gray-500"
-              onClick={() => {
-                token.clear()
-                nav('/login', { replace: true })
-              }}
-            >
-              로그아웃
-            </button>
-          </nav>
+          <UserMenu
+            loggedIn={loggedIn}
+            unverified={unverified}
+            onLogout={() => {
+              token.clear()
+              setLoggedIn(false)
+              setUnverified(false)
+            }}
+          />
         </div>
         <input
           type="search"
@@ -125,6 +153,27 @@ export default function Main() {
           placeholder="품목을 검색해 보세요"
           className="mt-3 w-full rounded-lg bg-gray-100 px-3 py-2.5"
         />
+        {!loggedIn && (
+          <label className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+            내 동네
+            <select
+              value={guestHood}
+              onChange={(e) => {
+                setGuestHood(e.target.value)
+                try {
+                  localStorage.setItem(GUEST_HOOD_KEY, e.target.value)
+                } catch {
+                  /* 기억하지 못해도 이번 화면은 동작한다 */
+                }
+              }}
+              className="rounded-lg bg-gray-100 px-2 py-1.5"
+            >
+              {NEIGHBORHOODS.map((n) => (
+                <option key={n.name}>{n.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="mt-3 grid grid-cols-2 rounded-lg bg-gray-100 p-1 text-center text-sm">
           {(['GROUP_BUY', 'SHARE'] as const).map((t) => (
             <button
@@ -190,12 +239,15 @@ export default function Main() {
             item={item}
             now={now}
             busy={joining === item.id}
-            onJoin={() => setConfirming(item)}
+            onJoin={() => (loggedIn ? setConfirming(item) : toLogin())}
+            loggedIn={loggedIn}
             onReport={() =>
-              setReporting({
-                itemId: item.id,
-                label: `${item.owner_nickname}님의 글 「${item.title}」`,
-              })
+              loggedIn
+                ? setReporting({
+                    itemId: item.id,
+                    label: `${item.owner_nickname}님의 글 「${item.title}」`,
+                  })
+                : toLogin()
             }
           />
         ))}
@@ -282,12 +334,14 @@ function ItemCard({
   busy,
   onJoin,
   onReport,
+  loggedIn,
 }: {
   item: Item
   now: number
   busy: boolean
   onJoin: () => void
   onReport: () => void
+  loggedIn: boolean
 }) {
   const left = remaining(item.deadline, now)
   const share = item.type === 'SHARE'
@@ -360,9 +414,7 @@ function ItemCard({
                   : '신청함'
                 : busy
                   ? '신청 중…'
-                  : share
-                    ? '받기'
-                    : '신청'}
+                  : (loggedIn ? '' : '로그인하고 ') + (share ? '받기' : '신청')}
             </button>
           )}
         </div>
