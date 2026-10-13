@@ -56,6 +56,10 @@ export default function NewItem() {
       })
       nav('/', { replace: true })
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
+        nav('/check-email') // 인증 안내 화면(기획서 11장)
+        return
+      }
       setProblem(
         err instanceof ApiError
           ? { message: err.message, field: err.field }

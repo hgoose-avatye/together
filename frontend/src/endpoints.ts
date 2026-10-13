@@ -14,6 +14,11 @@ export const signup = (b: {
 export const login = (email: string, password: string) =>
   api<LoginResponse>('/auth/login', post({ email, password }))
 
+export const verifyEmail = (token: string) =>
+  api<{ email_verified: boolean }>('/auth/verify-email', post({ token }))
+export const resendVerification = () =>
+  api<{ sent: boolean }>('/auth/resend-verification', { method: 'POST' })
+
 export const listItems = (p: { type: string; sort: string; q: string }) => {
   const qs = new URLSearchParams({ type: p.type, sort: p.sort })
   if (p.q.trim()) qs.set('q', p.q.trim())

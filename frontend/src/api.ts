@@ -21,6 +21,9 @@ export type ErrorCode =
   | 'UPLOAD_FAILED'
   | 'ALREADY_REPORTED'
   | 'ACCOUNT_SUSPENDED'
+  | 'EMAIL_NOT_VERIFIED'
+  | 'INVALID_TOKEN'
+  | 'TOO_MANY_REQUESTS'
 
 export class ApiError extends Error {
   readonly code: ErrorCode

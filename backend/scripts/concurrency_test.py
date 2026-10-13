@@ -44,6 +44,21 @@ def auth(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+def mark_verified(user_id: int) -> None:
+    """시연 계정의 이메일 인증을 DB에서 직접 처리한다. 개발 DB가 아니면 거부한다(기획서 5.11).
+
+    서버가 가리키는 DB와 이 스크립트의 DB가 같아야 한다. 다르면 이후 글 작성·신청이 EMAIL_NOT_VERIFIED로 막힌다.
+    """
+    from sqlalchemy import text
+
+    from app.db import engine
+    from app.dbguard import assert_dev_database
+
+    assert_dev_database(engine)
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE users SET email_verified_at = now() WHERE id = :i"), {"i": user_id})
+
+
 async def make_user(
     base: str, email: str, nickname: str, lat: float, lng: float
 ) -> dict:
@@ -55,7 +70,9 @@ async def make_user(
             "lat": lat,
             "lng": lng,
         }
-        (await c.post("/auth/signup", json=body)).raise_for_status()
+        r = await c.post("/auth/signup", json=body)
+        r.raise_for_status()
+        mark_verified(r.json()["id"])
         r = await c.post("/auth/login", json={"email": email, "password": PASSWORD})
         r.raise_for_status()
         return {"token": r.json()["access_token"], "nickname": nickname, "email": email}
@@ -137,6 +154,9 @@ def cleanup(prefix: str) -> None:
         users = f"SELECT id FROM users WHERE email LIKE '{prefix}%'"
         items = f"SELECT id FROM items WHERE owner_id IN ({users})"
         with engine.begin() as conn:
+            conn.execute(
+                text(f"DELETE FROM email_verification_tokens WHERE user_id IN ({users})")
+            )
             conn.execute(
                 text(f"DELETE FROM admin_actions WHERE target_user_id IN ({users})")
             )

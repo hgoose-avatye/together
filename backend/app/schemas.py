@@ -73,6 +73,7 @@ class UserOut(BaseModel):
     nickname: str
     lat: float
     lng: float
+    email_verified: bool = False
 
 
 class LoginResponse(BaseModel):
@@ -80,3 +81,15 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserOut
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class VerifyEmailResponse(BaseModel):
+    email_verified: bool
+
+
+class ResendResponse(BaseModel):
+    sent: bool

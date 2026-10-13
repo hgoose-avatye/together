@@ -66,6 +66,10 @@ export default function Main() {
       const r = await joinItem(item.id)
       setNotice(r.status === 'CONFIRMED' ? '마지막 몫을 가져갔어요. 성사됐어요!' : '신청했어요')
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'EMAIL_NOT_VERIFIED') {
+        nav('/check-email') // 인증 안내 화면(기획서 11장)
+        return
+      }
       setNotice(e instanceof ApiError ? e.message : '서버에 연결하지 못했어요')
     } finally {
       setJoining(null)

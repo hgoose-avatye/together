@@ -27,3 +27,10 @@ def get_current_user(
     if user.status == "SUSPENDED":
         raise AppError("ACCOUNT_SUSPENDED")
     return user
+
+
+def get_verified_user(user: User = Depends(get_current_user)) -> User:
+    """이메일 소유 확인을 마친 사용자만(글 작성 A-04, 몫 신청 A-05). 정지 검사는 get_current_user에서 먼저 한다."""
+    if user.email_verified_at is None:
+        raise AppError("EMAIL_NOT_VERIFIED")
+    return user

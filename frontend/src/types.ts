@@ -7,6 +7,7 @@ export interface User {
   nickname: string
   lat: number
   lng: number
+  email_verified: boolean
 }
 
 export interface LoginResponse {

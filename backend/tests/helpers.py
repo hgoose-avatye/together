@@ -86,7 +86,9 @@ def insert_reservation(item_id: int, user_id: int) -> int:
         ).scalar_one()
 
 
-def insert_user(location: tuple[float, float], nickname: str = "테스트유저") -> TestUser:
+def insert_user(
+    location: tuple[float, float], nickname: str = "테스트유저", verified: bool = True
+) -> TestUser:
     """가입·로그인을 거치지 않고 사용자를 DB에 넣고 토큰을 바로 발급한다(bcrypt를 피해 빠르다).
 
     로그인 자체를 검사하는 테스트에는 쓰지 말 것: 비밀번호 해시가 가짜다.
@@ -95,10 +97,17 @@ def insert_user(location: tuple[float, float], nickname: str = "테스트유저"
     with engine.begin() as conn:
         user_id = conn.execute(
             text(
-                "INSERT INTO users (email, password_hash, nickname, lat, lng) "
-                "VALUES (:email, 'not-a-real-hash', :nickname, :lat, :lng) RETURNING id"
+                "INSERT INTO users (email, password_hash, nickname, lat, lng, email_verified_at) "
+                "VALUES (:email, 'not-a-real-hash', :nickname, :lat, :lng, "
+                "CASE WHEN :verified THEN now() END) RETURNING id"
             ),
-            {"email": email, "nickname": nickname, "lat": location[0], "lng": location[1]},
+            {
+                "email": email,
+                "nickname": nickname,
+                "lat": location[0],
+                "lng": location[1],
+                "verified": verified,
+            },
         ).scalar_one()
     return TestUser(user_id, email, nickname, {"Authorization": f"Bearer {create_access_token(user_id)}"})
 

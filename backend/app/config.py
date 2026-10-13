@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     supabase_bucket: str = "images"
     # 운영 서버는 production으로 둔다. DB 보호 검증(dbguard)은 development만 통과시킨다.
     app_env: str = "development"
+    # 인증 메일 발송 방식: console(개발: 서버 콘솔에 링크 출력) 또는 smtp(운영). 기획서 5.10
+    mail_backend: str = "console"
+    frontend_url: str = "http://localhost:5173"  # 메일 링크의 앞부분
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    mail_from: str = ""
 
     @field_validator("database_url")
     @classmethod
@@ -29,6 +37,17 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+
+def check_runtime(s: Settings) -> None:
+    """서버 시작 때 설정이 위험하거나 모순되면 거부한다(fail closed, 기획서 5.10)."""
+    if s.mail_backend not in ("console", "smtp"):
+        raise RuntimeError(f"MAIL_BACKEND={s.mail_backend!r}: console 또는 smtp여야 합니다")
+    if s.app_env == "production" and s.mail_backend == "console":
+        raise RuntimeError("운영 환경에서는 MAIL_BACKEND=console을 쓸 수 없습니다(인증 링크가 서버 로그에만 남음)")
+    if s.mail_backend == "smtp" and not (s.smtp_host and s.mail_from):
+        raise RuntimeError("MAIL_BACKEND=smtp에는 SMTP_HOST와 MAIL_FROM이 필요합니다")
 
 
 settings = Settings()

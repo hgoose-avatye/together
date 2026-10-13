@@ -53,6 +53,7 @@ class User(Base):
     status: Mapped[str] = mapped_column(String(10), server_default="ACTIVE")
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     suspension_reason: Mapped[str | None] = mapped_column(String(500))
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Item(Base):
@@ -173,6 +174,25 @@ class AdminAction(Base):
     report_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("reports.id"))
     actor_os_user: Mapped[str] = mapped_column(String(100))
     note: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class EmailVerificationToken(Base):
+    """이메일 인증 토큰. 원문은 저장하지 않고 SHA-256 해시만 둔다(기획서 5.10)."""
+
+    __tablename__ = "email_verification_tokens"
+    __table_args__ = (
+        CheckConstraint("length(token_hash) = 64", name="token_hash_len"),
+        Index(None, "user_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -4,15 +4,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app import email_verification
 from app.db import get_db
+from app.deps import get_current_user
 from app.errors import AppError
 from app.models import User
 from app.schemas import (
     LoginRequest,
     LoginResponse,
+    ResendResponse,
     SignupRequest,
     SignupResponse,
     UserOut,
+    VerifyEmailRequest,
+    VerifyEmailResponse,
     round_coord,
 )
 from app.security import create_access_token, dummy_hash, hash_password, verify_password
@@ -37,6 +42,7 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)) -> SignupResponse
         # 미리 SELECT로 확인하지 않고 DB 제약에 맡겨 동시 가입에서도 안전하다.
         db.rollback()
         raise AppError("EMAIL_TAKEN")
+    email_verification.send_on_signup(db, user)  # 메일이 실패해도 가입은 성공(재발송 가능)
     return SignupResponse(id=user.id)
 
 
@@ -53,6 +59,24 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
         access_token=create_access_token(user.id),
         expires_in=settings.jwt_expire_hours * 3600,
         user=UserOut(
-            id=user.id, nickname=user.nickname, lat=float(user.lat), lng=float(user.lng)
+            id=user.id,
+            nickname=user.nickname,
+            lat=float(user.lat),
+            lng=float(user.lng),
+            email_verified=user.email_verified_at is not None,
         ),
     )
+
+
+@router.post("/verify-email", response_model=VerifyEmailResponse)
+def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)) -> VerifyEmailResponse:
+    """인증 링크의 토큰을 확인한다. 로그인이 필요 없다(토큰이 사용자를 가리킨다)."""
+    email_verification.verify(db, body.token)
+    return VerifyEmailResponse(email_verified=True)
+
+
+@router.post("/resend-verification", response_model=ResendResponse)
+def resend_verification(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> ResendResponse:
+    return ResendResponse(sent=email_verification.resend(db, user.id))
