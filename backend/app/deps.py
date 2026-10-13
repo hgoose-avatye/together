@@ -29,6 +29,25 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """로그인 없이도 쓸 수 있는 API용(목록 조회). 토큰이 없거나 유효하지 않으면 None(둘러보기).
+
+    토큰이 유효한데 계정이 정지됐으면 ACCOUNT_SUSPENDED로 막는다(정지 검사는 어디서나 같다).
+    """
+    if credentials is None:
+        return None
+    user_id = decode_access_token(credentials.credentials)
+    user = db.get(User, user_id) if user_id is not None else None
+    if user is None:
+        return None
+    if user.status == "SUSPENDED":
+        raise AppError("ACCOUNT_SUSPENDED")
+    return user
+
+
 def get_verified_user(user: User = Depends(get_current_user)) -> User:
     """이메일 소유 확인을 마친 사용자만(글 작성 A-04, 몫 신청 A-05). 정지 검사는 get_current_user에서 먼저 한다."""
     if user.email_verified_at is None:

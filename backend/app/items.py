@@ -29,11 +29,12 @@ def distance_to(item: Item, origin: tuple[float, float]) -> float:
 def to_item_out(
     item: Item,
     owner: User,
-    viewer: User,
+    viewer: User | None,
     is_joined: bool = False,
     origin: tuple[float, float] | None = None,
 ) -> ItemOut:
-    """origin은 거리 기준점이다. 없으면 보는 사람의 저장 위치를 쓴다."""
+    """origin은 거리 기준점이다. 없으면 보는 사람의 저장 위치를 쓴다. viewer가 None이면 로그인 없는 둘러보기다."""
+    assert origin is not None or viewer is not None
     origin = origin or (float(viewer.lat), float(viewer.lng))
     distance = distance_to(item, origin)
     return ItemOut(
@@ -50,7 +51,7 @@ def to_item_out(
         deadline=item.deadline.astimezone(KST),
         distance_km=round(distance, 1),
         status=display_status(item),
-        is_mine=item.owner_id == viewer.id,
+        is_mine=viewer is not None and item.owner_id == viewer.id,
         is_joined=is_joined,
         image_url=item.image_url,
         product_url=item.product_url,

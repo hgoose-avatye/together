@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router'
+import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { ApiError, token } from '../api'
 import { login, signup } from '../endpoints'
 import { NEIGHBORHOODS } from '../neighborhoods'
@@ -9,7 +9,13 @@ type Problem = { message: string; field?: string; code?: string }
 
 export default function Auth() {
   const nav = useNavigate()
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const params = useSearchParams()[0]
+  // 로그인 뒤 돌아갈 곳. 같은 사이트 안의 경로만 받는다(//로 시작하는 바깥 주소는 거절)
+  const rawNext = params.get('next') ?? '/'
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/'
+  const [mode, setMode] = useState<'login' | 'signup'>(
+    params.get('mode') === 'signup' ? 'signup' : 'login',
+  )
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
@@ -30,7 +36,7 @@ export default function Auth() {
     )
   }, [mode, loc, pickList])
 
-  if (token.get() && !leaving) return <Navigate to="/" replace />
+  if (token.get() && !leaving) return <Navigate to={next} replace />
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -48,7 +54,7 @@ export default function Auth() {
       token.set((await login(email, password)).access_token) // 가입에 성공하면 이어서 자동 로그인
       setLeaving(true)
       // 가입 직후에는 메일 확인 안내 화면으로. 로그인만 한 경우는 목록으로(미인증이어도 둘러볼 수 있다).
-      nav(mode === 'signup' ? '/check-email' : '/', {
+      nav(mode === 'signup' ? '/check-email' : next, {
         replace: true,
         state: { justSignedUp: mode === 'signup' },
       })

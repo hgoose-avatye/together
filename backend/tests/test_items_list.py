@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from .conftest import make_user
-from .helpers import insert_item, insert_reservation, offset, unique_location
+from .helpers import insert_item, insert_reservation, insert_user, offset, unique_location
 
 NOW = lambda: datetime.now(timezone.utc)  # noqa: E731
 
@@ -274,7 +274,64 @@ def shared_user(client: TestClient):
     return make_user(client)
 
 
-def test_list_requires_login(client: TestClient):
+# ---------- 로그인 없이 둘러보기 (기획서 10.5) ----------
+
+
+def test_guest_can_browse_with_a_location(client: TestClient):
+    loc = unique_location()
+    owner = insert_user(loc, "개설자")
+    item_id = insert_item(owner.id, loc, title="둘러보기 글")
+    res = client.get("/items", params={"type": "GROUP_BUY", "lat": loc[0], "lng": loc[1]})
+    assert res.status_code == 200, res.text
+    [item] = res.json()["items"]
+    assert item["id"] == item_id and item["owner_nickname"] == "개설자"
+    assert (item["is_mine"], item["is_joined"]) == (False, False)
+    assert "pickup_note" not in item and "owner_share" not in item  # 만남 정보는 목록에 없다
+
+
+def test_guest_needs_a_location(client: TestClient):
     res = client.get("/items", params={"type": "GROUP_BUY"})
-    assert res.status_code == 401
-    assert res.json()["code"] == "UNAUTHORIZED"
+    assert (res.status_code, res.json()["code"], res.json()["field"]) == (400, "INVALID_INPUT", "lat")
+
+
+def test_invalid_or_stale_token_is_treated_as_guest(client: TestClient):
+    loc = unique_location()
+    insert_item(insert_user(loc, "개설자").id, loc)
+    for token in ("garbage", "a.b.c"):
+        res = client.get(
+            "/items", params={"type": "GROUP_BUY", "lat": loc[0], "lng": loc[1]}, headers={"Authorization": f"Bearer {token}"}
+        )
+        assert res.status_code == 200 and len(res.json()["items"]) == 1
+
+
+def test_guest_never_sees_my_or_joined_flags(client: TestClient):
+    """로그인했다면 true인 값이 같은 목록에서 로그인 없이는 false다."""
+    loc = unique_location()
+    owner, joiner = insert_user(loc, "개설자"), insert_user(loc, "참여자")
+    item_id = insert_item(owner.id, loc, total_slots=3)
+    insert_reservation(item_id, joiner.id)
+    q = {"type": "GROUP_BUY", "lat": loc[0], "lng": loc[1]}
+    assert client.get("/items", params=q, headers=owner.headers).json()["items"][0]["is_mine"] is True
+    assert client.get("/items", params=q, headers=joiner.headers).json()["items"][0]["is_joined"] is True
+    guest = client.get("/items", params=q).json()["items"][0]
+    assert (guest["is_mine"], guest["is_joined"]) == (False, False)
+
+
+def test_suspended_token_is_still_blocked_on_the_public_list(client: TestClient):
+    from app.db import engine
+    from sqlalchemy.orm import Session
+
+    from app.suspension import suspend_user
+
+    loc = unique_location()
+    u = insert_user(loc, "정지될사람")
+    with Session(engine) as db:
+        suspend_user(db, u.id, "테스트", "pytest")
+    res = client.get("/items", params={"type": "GROUP_BUY", "lat": loc[0], "lng": loc[1]}, headers=u.headers)
+    assert (res.status_code, res.json()["code"]) == (403, "ACCOUNT_SUSPENDED")
+
+
+def test_other_apis_still_require_login(client: TestClient):
+    for method, path in (("POST", "/items/1/join"), ("POST", "/items"), ("GET", "/me/items"), ("GET", "/me"), ("POST", "/reports")):
+        res = client.request(method, path)
+        assert (res.status_code, res.json()["code"]) == (401, "UNAUTHORIZED"), (method, path)

@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router'
 import type { ReactNode } from 'react'
 import { token } from './api'
 import Auth from './pages/Auth'
@@ -9,8 +9,11 @@ import Suspended from './pages/Suspended'
 import Verify from './pages/Verify'
 import NewItem from './pages/NewItem'
 
+// 로그인이 필요한 화면은 로그인 화면으로 보내고, 로그인하면 원래 화면으로 돌아온다(기획서 11장)
 function RequireAuth({ children }: { children: ReactNode }) {
-  return token.get() ? children : <Navigate to="/login" replace />
+  const here = useLocation()
+  const next = encodeURIComponent(here.pathname + here.search)
+  return token.get() ? children : <Navigate to={`/login?next=${next}`} replace />
 }
 
 export default function App() {
@@ -29,14 +32,7 @@ export default function App() {
               </RequireAuth>
             }
           />
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <Main />
-              </RequireAuth>
-            }
-          />
+          <Route path="/" element={<Main />} />
           <Route
             path="/new"
             element={
