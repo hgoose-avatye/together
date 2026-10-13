@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { NEIGHBORHOODS } from '../neighborhoods'
 import { ApiError, token } from '../api'
 import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
 import SafetyNotice from '../components/SafetyNotice'
+import VerifyNotice from '../components/VerifyNotice'
 import UserMenu from '../components/UserMenu'
 import { getMe, joinItem, listItems } from '../endpoints'
 import { remaining, untilDate, won } from '../format'
+import { clearResume, peekResume, saveResume } from '../resume'
 import type { Item } from '../types'
 
 type Result = { key: string; items?: Item[]; error?: string }
@@ -39,7 +41,15 @@ export default function Main() {
   const nav = useNavigate()
   const [loggedIn, setLoggedIn] = useState(() => !!token.get())
   const [guestHood, setGuestHood] = useState(loadGuestHood)
-  const [tab, setTab] = useState<Tab>('GROUP_BUY')
+  // 인증하러 갔다 돌아왔다면 신청하려던 글의 탭으로 열고, 목록이 오면 그 글의 신청 확인 창을 바로 연다
+  const [resume] = useState(peekResume)
+  const resumeJoin = resume?.kind === 'join' ? resume : null
+  const pendingJoin = useRef<number | null>(resumeJoin?.itemId ?? null)
+  useEffect(() => {
+    if (resumeJoin) clearResume()
+  }, [resumeJoin])
+  const [needVerify, setNeedVerify] = useState<Item | null>(null)
+  const [tab, setTab] = useState<Tab>(resumeJoin?.tab ?? 'GROUP_BUY')
   const [sortChoice, setSortChoice] = useState<Sort | null>(null)
   // 정렬을 고르기 전에는 탭마다 기본값을 쓴다: 같이사기는 가까운 순, 나눔은 유통기한 임박 순(기획서 F-07)
   const sort: Sort = sortChoice ?? (tab === 'SHARE' ? 'deadline' : 'distance')
@@ -82,7 +92,18 @@ export default function Main() {
       q: debouncedQ,
       ...(!loggedIn && { lat: hood.lat, lng: hood.lng }),
     })
-      .then((r) => !stale && setResult({ key, items: r.items }))
+      .then((r) => {
+        if (stale) return
+        setResult({ key, items: r.items })
+        if (pendingJoin.current !== null) {
+          const target = r.items.find((i) => i.id === pendingJoin.current)
+          pendingJoin.current = null
+          if (!target)
+            setNotice('신청하려던 글을 찾지 못했어요. 마감됐거나 몫이 모두 찼을 수 있어요')
+          else if (target.is_joined) setNotice('이미 신청한 글이에요')
+          else setConfirming(target) // 끊김 없이 신청 확인 창으로
+        }
+      })
       .catch((e) => {
         if (stale) return
         if (e instanceof ApiError && e.field === 'lat' && loggedIn) {
@@ -117,7 +138,8 @@ export default function Main() {
       setNotice(r.status === 'CONFIRMED' ? '마지막 몫을 가져갔어요. 성사됐어요!' : '신청했어요')
     } catch (e) {
       if (e instanceof ApiError && e.code === 'EMAIL_NOT_VERIFIED') {
-        nav('/check-email') // 인증 안내 화면(기획서 11장)
+        setUnverified(true)
+        setNeedVerify(item) // 이동하지 않고 그 자리에서 안내한다
         return
       }
       setNotice(e instanceof ApiError ? e.message : '서버에 연결하지 못했어요')
@@ -213,7 +235,18 @@ export default function Main() {
         </div>
       </header>
 
-      {unverified && (
+      {needVerify && (
+        <VerifyNotice
+          className="mx-4 mt-3"
+          message={`「${needVerify.title}」 신청은 인증을 마친 뒤에 할 수 있어요. 인증이 끝나면 이 글로 바로 돌아와요.`}
+          onGo={() => {
+            saveResume({ kind: 'join', itemId: needVerify.id, tab })
+            nav('/check-email')
+          }}
+        />
+      )}
+
+      {unverified && !needVerify && (
         <Link
           to="/check-email"
           className="mx-4 mt-3 block rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900"
@@ -238,7 +271,9 @@ export default function Main() {
             item={item}
             now={now}
             busy={joining === item.id}
-            onJoin={() => (loggedIn ? setConfirming(item) : toLogin())}
+            onJoin={() =>
+              !loggedIn ? toLogin() : unverified ? setNeedVerify(item) : setConfirming(item)
+            }
             loggedIn={loggedIn}
             onReport={() =>
               loggedIn

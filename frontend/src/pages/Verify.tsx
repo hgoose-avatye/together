@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { ApiError, token as session } from '../api'
 import { verifyEmail } from '../endpoints'
+import { continueTarget, peekResume } from '../resume'
 
 type State =
   { kind: 'ready' } | { kind: 'busy' } | { kind: 'done' } | { kind: 'error'; message: string }
@@ -13,6 +14,7 @@ type State =
 export default function Verify() {
   const t = useSearchParams()[0].get('token') ?? ''
   const [state, setState] = useState<State>({ kind: 'ready' })
+  const next = continueTarget(peekResume()) // 같은 브라우저에서 신청·글쓰기 중 온 경우
 
   async function confirm() {
     setState({ kind: 'busy' }) // 누르는 즉시 비활성화해 한 번만 보낸다
@@ -34,10 +36,10 @@ export default function Verify() {
         <>
           <p className="mt-3 text-gray-700">인증이 끝났어요.</p>
           <Link
-            to={session.get() ? '/' : '/login'}
+            to={session.get() ? (next?.to ?? '/') : '/login'}
             className="mt-6 inline-block rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white"
           >
-            {session.get() ? '목록으로' : '로그인하러 가기'}
+            {session.get() ? (next?.label ?? '목록으로') : '로그인하러 가기'}
           </Link>
         </>
       ) : (
