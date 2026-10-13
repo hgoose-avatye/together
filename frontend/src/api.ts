@@ -20,6 +20,7 @@ export type ErrorCode =
   | 'UNSUPPORTED_FILE'
   | 'UPLOAD_FAILED'
   | 'ALREADY_REPORTED'
+  | 'ACCOUNT_SUSPENDED'
 
 export class ApiError extends Error {
   readonly code: ErrorCode
@@ -55,6 +56,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (body.code === 'UNAUTHORIZED') {
       token.clear()
       window.location.assign('/login')
+    }
+    // 정지 전에 받은 토큰도 서버가 막는다. 토큰을 지우고 안내 화면으로 보낸다(로그인 중에는 그 화면이 문구를 보여 준다).
+    if (body.code === 'ACCOUNT_SUSPENDED' && token.get()) {
+      token.clear()
+      window.location.assign('/suspended')
     }
     throw new ApiError(
       body.code ?? 'INVALID_INPUT',

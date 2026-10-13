@@ -58,6 +58,7 @@ export interface Reservation {
     deadline: string
     status: ItemStatus
     pickup_note: string | null // 성사(CONFIRMED)된 글에서만 값이 있다
+    owner_suspended: boolean
   }
 }
 
@@ -73,7 +74,12 @@ export interface MyItem {
   deadline: string
   status: ItemStatus
   pickup_note: string
-  participants: { reservation_id: number; nickname: string; joined_at: string }[]
+  participants: {
+    reservation_id: number
+    nickname: string
+    joined_at: string
+    user_suspended: boolean
+  }[]
 }
 
 export interface NewItem {

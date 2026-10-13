@@ -33,6 +33,13 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("status IN ('ACTIVE', 'SUSPENDED')", name="status"),
+        CheckConstraint(
+            "(status = 'SUSPENDED') = (suspended_at IS NOT NULL)",
+            name="suspended_consistency",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True)
@@ -43,6 +50,9 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    status: Mapped[str] = mapped_column(String(10), server_default="ACTIVE")
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    suspension_reason: Mapped[str | None] = mapped_column(String(500))
 
 
 class Item(Base):
@@ -140,6 +150,29 @@ class Report(Base):
     resolution: Mapped[str | None] = mapped_column(String(10))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolution_note: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class AdminAction(Base):
+    """운영 도구가 남기는 감사 기록. 추가만 하고 고치거나 지우지 않는다(기획서 5.9)."""
+
+    __tablename__ = "admin_actions"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('SUSPEND', 'UNSUSPEND', 'RESOLVE_REPORT', 'VERIFY_EMAIL')",
+            name="action",
+        ),
+        Index(None, "target_user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    action: Mapped[str] = mapped_column(String(20))
+    target_user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    report_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("reports.id"))
+    actor_os_user: Mapped[str] = mapped_column(String(100))
+    note: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

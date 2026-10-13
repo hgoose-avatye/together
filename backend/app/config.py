@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_service_key: str = ""
     supabase_bucket: str = "images"
+    # 운영 서버는 production으로 둔다. DB 보호 검증(dbguard)은 development만 통과시킨다.
+    app_env: str = "development"
 
     @field_validator("database_url")
     @classmethod

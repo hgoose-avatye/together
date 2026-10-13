@@ -48,6 +48,7 @@ def my_reservations(
                     deadline=item.deadline.astimezone(KST),
                     status=status,
                     pickup_note=item.pickup_note if status == "CONFIRMED" else None,
+                    owner_suspended=owner.status == "SUSPENDED",
                 ),
             )
         )

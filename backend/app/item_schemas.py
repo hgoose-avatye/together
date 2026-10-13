@@ -192,6 +192,7 @@ class ReservedItemOut(BaseModel):
     deadline: datetime
     status: str
     pickup_note: str | None  # 성사(CONFIRMED)된 글에서만 채운다
+    owner_suspended: bool  # 개설자 계정이 지금 정지 상태인지(사유는 주지 않는다)
 
 
 class ReservationOut(BaseModel):
@@ -208,6 +209,7 @@ class ParticipantOut(BaseModel):
     reservation_id: int  # 신고할 때 대상을 가리키는 값(사용자 id는 주지 않는다)
     nickname: str
     joined_at: datetime
+    user_suspended: bool  # 그 참여자 계정이 지금 정지 상태인지(사유는 주지 않는다)
 
 
 class MyItemOut(BaseModel):

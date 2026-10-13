@@ -126,10 +126,20 @@ def cleanup(prefix: str) -> None:
         from sqlalchemy import text
 
         from app.db import engine
+        from app.dbguard import UnsafeDatabase, assert_dev_database
+
+        try:
+            assert_dev_database(engine)  # 개발 DB가 아니면 지우지 않는다(기획서 5.11)
+        except UnsafeDatabase as e:
+            print(f"\n정리: 거부했습니다. {e}")
+            return
 
         users = f"SELECT id FROM users WHERE email LIKE '{prefix}%'"
         items = f"SELECT id FROM items WHERE owner_id IN ({users})"
         with engine.begin() as conn:
+            conn.execute(
+                text(f"DELETE FROM admin_actions WHERE target_user_id IN ({users})")
+            )
             conn.execute(
                 text(
                     f"DELETE FROM reports WHERE reporter_id IN ({users}) "

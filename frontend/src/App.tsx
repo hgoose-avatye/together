@@ -4,6 +4,7 @@ import { token } from './api'
 import Auth from './pages/Auth'
 import Main from './pages/Main'
 import Me from './pages/Me'
+import Suspended from './pages/Suspended'
 import NewItem from './pages/NewItem'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -16,6 +17,7 @@ export default function App() {
       <div className="mx-auto min-h-dvh max-w-[430px] bg-white">
         <Routes>
           <Route path="/login" element={<Auth />} />
+          <Route path="/suspended" element={<Suspended />} />
           <Route
             path="/"
             element={
