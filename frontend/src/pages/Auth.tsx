@@ -18,6 +18,7 @@ export default function Auth() {
   const [pickList, setPickList] = useState(() => !('geolocation' in navigator))
   const [problem, setProblem] = useState<Problem | null>(null)
   const [busy, setBusy] = useState(false)
+  const [leaving, setLeaving] = useState(false) // 로그인 직후 우리가 정한 곳으로 이동하는 중이면 아래 자동 이동이 덮어쓰지 않게 한다
 
   // 가입 탭을 열면 브라우저 위치를 먼저 요청하고, 거부하거나 실패하면 동네 목록으로 넘어간다(기획서 11장).
   useEffect(() => {
@@ -29,7 +30,7 @@ export default function Auth() {
     )
   }, [mode, loc, pickList])
 
-  if (token.get()) return <Navigate to="/" replace />
+  if (token.get() && !leaving) return <Navigate to="/" replace />
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -45,6 +46,7 @@ export default function Auth() {
         await signup({ email, password, nickname, lat: loc.lat, lng: loc.lng })
       }
       token.set((await login(email, password)).access_token) // 가입에 성공하면 이어서 자동 로그인
+      setLeaving(true)
       // 가입 직후에는 메일 확인 안내 화면으로. 로그인만 한 경우는 목록으로(미인증이어도 둘러볼 수 있다).
       nav(mode === 'signup' ? '/check-email' : '/', {
         replace: true,

@@ -4,7 +4,7 @@ import { ApiError } from '../api'
 import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
 import SafetyNotice from '../components/SafetyNotice'
 import { cancelItem, myItems, myReservations } from '../endpoints'
-import { formatDateTime, won } from '../format'
+import { formatDateTime, untilDate, won } from '../format'
 import type { ItemStatus, MyItem, Reservation } from '../types'
 
 type Tab = 'reservations' | 'items'
@@ -160,7 +160,10 @@ export default function Me() {
                 )}
               </p>
               <p className="mt-1 text-sm text-gray-500">
-                마감 {formatDateTime(r.item.deadline)} · 신청 {formatDateTime(r.joined_at)}
+                {r.item.type === 'SHARE'
+                  ? untilDate(r.item.deadline)
+                  : `마감 ${formatDateTime(r.item.deadline)}`}{' '}
+                · 신청 {formatDateTime(r.joined_at)}
               </p>
               {r.item.pickup_note ? (
                 <p className="mt-3 rounded-lg bg-green-50 p-3 text-sm">
@@ -182,10 +185,22 @@ export default function Me() {
                 <Badge status={it.status} type={it.type} />
               </div>
               <p className="mt-2 text-sm">
-                몫 {it.filled_slots}/{it.total_slots} · 참여자 {won(it.price_per_slot)} · 내 몫{' '}
-                <b>{won(it.owner_share)}</b> · 총 {won(it.total_price)}
+                {it.type === 'SHARE' ? (
+                  <>
+                    무료 나눔 · 몫 {it.filled_slots}/{it.total_slots}
+                  </>
+                ) : (
+                  <>
+                    몫 {it.filled_slots}/{it.total_slots} · 참여자 {won(it.price_per_slot)} · 내 몫{' '}
+                    <b>{won(it.owner_share)}</b> · 총 {won(it.total_price)}
+                  </>
+                )}
               </p>
-              <p className="mt-1 text-sm text-gray-500">마감 {formatDateTime(it.deadline)}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {it.type === 'SHARE'
+                  ? untilDate(it.deadline)
+                  : `마감 ${formatDateTime(it.deadline)}`}
+              </p>
               <p className="mt-3 text-sm">
                 <b>신청한 사람</b>{' '}
                 {it.participants.length === 0 && <span className="text-gray-500">아직 없어요</span>}

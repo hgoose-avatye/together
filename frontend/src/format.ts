@@ -13,10 +13,12 @@ export const formatDateTime = (iso: string) =>
   }).format(new Date(iso))
 
 /** 나눔의 마감 표시: 저장된 마감(유통기한 다음 날 00:00)에서 하루를 빼 "10/13까지"로 보여 준다(기획서 5.3). */
-export const untilDate = (deadlineIso: string) =>
-  new Intl.DateTimeFormat('ko-KR', { ...KST, month: 'numeric', day: 'numeric' }).format(
-    new Date(new Date(deadlineIso).getTime() - 1),
-  ) + '까지'
+export const untilDate = (deadlineIso: string) => {
+  const parts = new Intl.DateTimeFormat('ko-KR', { ...KST, month: 'numeric', day: 'numeric' })
+    .formatToParts(new Date(new Date(deadlineIso).getTime() - 1))
+    .reduce<Record<string, string>>((acc, p) => ({ ...acc, [p.type]: p.value }), {})
+  return `${parts.month}/${parts.day}까지`
+}
 
 /** 마감까지 남은 시간. 0 이하이면 null(마감). */
 export function remaining(iso: string, now = Date.now()): string | null {
