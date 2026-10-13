@@ -5,7 +5,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, get_verified_user
 from app.errors import invalid_input
 from app.cancel import cancel_item
 from app.item_schemas import ItemCreate, ItemDetailOut, ItemListOut, JoinOut, MyItemOut
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/items", tags=["items"])
 @router.post("", status_code=201, response_model=ItemDetailOut)
 def create_item(
     body: ItemCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_verified_user),
     db: Session = Depends(get_db),
 ) -> ItemDetailOut:
     # owner_id는 토큰의 사용자로 정한다. 본문에 owner_id가 들어 있어도 무시한다.
@@ -126,7 +126,7 @@ def list_items(
 @router.post("/{item_id}/join", status_code=201, response_model=JoinOut)
 def join(
     item_id: int,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_verified_user),
     db: Session = Depends(get_db),
 ) -> JoinOut:
     """몫 1개를 신청한다. 사용자는 토큰으로 정하고, 요청 본문은 없다."""

@@ -67,6 +67,18 @@ def unsuspend_user(db: Session, user_id: int, note: str, os_user: str) -> None:
     db.commit()
 
 
+def verify_email(db: Session, user_id: int, note: str, os_user: str) -> None:
+    """운영자가 이메일 소유를 직접 확인 처리한다(시연 계정 등). 이미 인증됐으면 거절한다."""
+    user = db.get(User, user_id, with_for_update=True)
+    if user is None:
+        raise AdminError(f"사용자 {user_id}가 없습니다")
+    if user.email_verified_at is not None:
+        raise AdminError(f"사용자 {user_id}는 이미 인증됐습니다")
+    user.email_verified_at = func.now()
+    _log(db, "VERIFY_EMAIL", user_id, os_user, note)
+    db.commit()
+
+
 def resolve_report(
     db: Session, report_id: int, resolution: str, note: str, os_user: str
 ) -> list[int]:

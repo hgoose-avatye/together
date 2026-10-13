@@ -4,7 +4,7 @@
 
 ## 지금 하는 일
 
-**안전 묶음: PR 1(신고)은 병합됨(#11). PR 2(계정 정지 + 관리 도구 + DB 보호) 구현 완료, 브랜치 `feat/safety-2-suspension`, PR 대기.** 아래 순서로 이어간다.
+**안전 묶음: PR 1(#11), PR 2(#12) 병합됨. PR 3(이메일 소유 확인) 구현 완료, 브랜치 `feat/safety-3-email-verify`, PR 대기.** 다음은 PR 4(Should), 그 뒤 4-5 배포.
 화면 4개(4-0~4-4)는 병합 완료. **4-5 첫 배포는 안전 묶음(PR 1~3) 뒤로 미룬다**(사용자 결정: 배포는 당분간 하지 않고 로컬에서 확인). 이메일 인증을 넣으면 운영 메일 발송 설정이 배포 조건이 된다(기획서 5.10, 5.11).
 
 ## 로드맵 (단계 → 넘어가는 조건)
@@ -26,7 +26,7 @@
 1. **[안전 묶음]** 기획서 5.9~5.11, 13장 "안전 묶음 작업 순서"가 기준이다. PR마다 새 브랜치, 새 에러 코드는 구현 PR에서 기획서 8장 본표로 옮기고 `app/errors.py`와 함께 맞춘다(동기화 테스트가 검사).
    - [x] **PR 1 안전 안내 + 신고**(백엔드 테스트 232개, 프론트 build·lint 통과, 브라우저 확인은 아직): `reports` 마이그레이션(UNIQUE, CHECK), A-10, A-08 참여자에 `reservation_id`, 화면(안내 문구, 신고 버튼 3곳과 신고 창). 신고는 `OPEN`으로 쌓이기만 한다(관리 도구는 PR 2)
    - [x] **PR 2 계정 정지**(백엔드 테스트 265개, 프론트 build·lint 통과, 브라우저 확인은 아직; `verify-email`은 PR 3): `users.status` 등 컬럼, `get_current_user` 정지 검사(로그인은 비밀번호 확인 뒤), 모집 중 글 취소, A-06 `owner_suspended`·A-08 `user_suspended`, `admin.py`와 `admin_actions`, DB 보호 검증(실제 연결의 프로젝트 id를 코드의 허용 목록과 비교; pytest·테스트 도구·시연 스크립트에 적용, `admin.py`는 제외), 정지와 마지막 신청 동시성 테스트(양쪽 분기), 새 인증 라우트 우회 방지 테스트
-   - [ ] **PR 3 이메일 소유 확인(Should)**: 해시 토큰 표, `send_mail()`(console은 운영에서 시작 거부), A-11·A-12, 미인증 제한(`EMAIL_NOT_VERIFIED`), 가입 후 안내 화면과 `/verify`, 테스트 도구(`insert_user`, `make_user`)와 시연 스크립트 갱신(약 50곳)
+   - [x] **PR 3 이메일 소유 확인(Should)**(백엔드 테스트 299개, 프론트 build·lint 통과, 브라우저 확인은 아직; 메일 방식은 console만 구현·SMTP는 코드만 있고 실제 발송 미확인): 해시 토큰 표, `send_mail()`(console은 운영에서 시작 거부), A-11·A-12, 미인증 제한(`EMAIL_NOT_VERIFIED`), 가입 후 안내 화면과 `/verify`, 테스트 도구(`insert_user`, `make_user`)와 시연 스크립트 갱신(약 50곳)
    - [ ] PR 4 가입일·성사 횟수 표시(Should)
 2. **[4-5 배포]** 안전 묶음 뒤. 먼저 메일 발송 방식을 정한다. 사용자가 직접 할 일: Render 서비스 생성 승인, `gachi-prod` 연결 문자열·Secret key를 Render 환경 변수에 입력
 3. 에러 코드 14개 중 11개의 반환 조건 테스트 완료. 남은 것: FILE_TOO_LARGE, UNSUPPORTED_FILE, UPLOAD_FAILED(나눔 묶음)

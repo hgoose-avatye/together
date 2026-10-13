@@ -11,6 +11,7 @@
   uv run python scripts/admin.py resolve <신고 id> --dismiss|--suspend --note "메모" [--yes]
   uv run python scripts/admin.py ban <사용자 id> --note "사유" [--yes]
   uv run python scripts/admin.py unban <사용자 id> --note "메모" [--yes]
+  uv run python scripts/admin.py verify-email <사용자 id> --note "메모" [--yes]   # 이메일 소유를 운영자가 확인 처리
 """
 
 import argparse
@@ -26,7 +27,13 @@ from sqlalchemy.orm import Session  # noqa: E402
 from app.db import engine  # noqa: E402
 from app.dbguard import project_id  # noqa: E402
 from app.models import Item, Report, User  # noqa: E402
-from app.suspension import AdminError, resolve_report, suspend_user, unsuspend_user  # noqa: E402
+from app.suspension import (  # noqa: E402
+    AdminError,
+    resolve_report,
+    suspend_user,
+    unsuspend_user,
+    verify_email,
+)
 
 
 def describe(user: User) -> str:
@@ -74,7 +81,7 @@ def main() -> None:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--dismiss", action="store_true")
     g.add_argument("--suspend", action="store_true")
-    for name in ("resolve", "ban", "unban"):
+    for name in ("resolve", "ban", "unban", "verify-email"):
         q = sub.choices[name] if name in sub.choices else sub.add_parser(name)
         if name != "resolve":
             q.add_argument("id", type=int)
@@ -99,6 +106,13 @@ def main() -> None:
                 if confirm(args, f"신고 #{r.id}를 {res}로 처리 (대상 {describe(target)}, 실행자 {os_user})"):
                     canceled = resolve_report(db, r.id, res, args.note, os_user)
                     print(f"처리했습니다. 취소된 모집 글: {canceled}")
+            elif args.cmd == "verify-email":
+                user = db.get(User, args.id)
+                if user is None:
+                    sys.exit(f"사용자 {args.id}가 없습니다")
+                if confirm(args, f"{describe(user)} 이메일 인증 처리 (실행자 {os_user})"):
+                    verify_email(db, user.id, args.note, os_user)
+                    print("인증 처리했습니다.")
             elif args.cmd in ("ban", "unban"):
                 user = db.get(User, args.id)
                 if user is None:

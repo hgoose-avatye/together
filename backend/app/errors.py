@@ -26,6 +26,9 @@ ERRORS: dict[str, tuple[int, str]] = {
     "UPLOAD_FAILED": (502, "사진을 올리지 못했어요"),
     "ALREADY_REPORTED": (409, "이미 신고한 내용이에요"),
     "ACCOUNT_SUSPENDED": (403, "이용이 제한된 계정이에요"),
+    "EMAIL_NOT_VERIFIED": (403, "이메일 인증이 필요해요"),
+    "INVALID_TOKEN": (400, "인증 링크가 올바르지 않거나 만료됐어요"),
+    "TOO_MANY_REQUESTS": (429, "잠시 뒤에 다시 요청해 주세요"),
 }
 
 

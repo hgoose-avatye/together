@@ -137,6 +137,7 @@ def test_login_success_returns_token_and_user(client: TestClient):
         "nickname": "망원동자취생",
         "lat": 37.56,
         "lng": 126.9,
+        "email_verified": False,  # 가입 직후는 미인증
     }
 
     claims = jwt.decode(body["access_token"], settings.jwt_secret, algorithms=["HS256"])

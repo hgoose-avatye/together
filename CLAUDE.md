@@ -64,4 +64,6 @@
 - 화면 문구는 한국어이고, 에러 문구는 기획서 8장 표를 그대로 쓴다.
 - 인증이 필요한 API는 반드시 `get_current_user`를 거친다(정지 검사가 거기 있다). 토큰을 직접 해석하는 라우트를 만들지 않는다. 사용자가 부를 수 있는 정지 해제·관리 API를 만들지 않는다.
 - 테스트와 시연 스크립트의 DB 변경은 `app/dbguard.py`의 `assert_dev_database` 통과가 전제다. 우회 옵션이나 허용 목록 밖의 id를 추가하지 않는다. 운영 도구 `scripts/admin.py`만 예외이고 `--yes`와 `admin_actions` 기록을 지킨다.
+- 글 작성(A-04)과 몫 신청(A-05)은 `get_verified_user`를 쓴다. 인증이 필요한 라우트를 추가하면 `tests/test_email_verification.py`의 분류 표(`NEEDS_VERIFIED`/`ALLOWED_UNVERIFIED`)에 넣어 미인증 허용 여부를 정한다. 인증 토큰은 해시만 저장하고 원문을 로그·응답에 남기지 않는다(개발 console 메일 제외).
+- 테스트에서 사용자를 만들 때 `insert_user`/`make_user`는 기본이 **인증된** 계정이다. 미인증이 필요하면 `verified=False`.
 - 신고(A-10)의 대상은 클라이언트가 보내지 않고 서버가 글과 신청 기록으로 정한다. 신고 접수만으로 자동 정지·숨김 같은 제재를 하지 않는다(기획서 5.9). 참여자 신고는 권한(NOT_OWNER)을 먼저 확인해 신청 기록의 존재가 새지 않게 한다.

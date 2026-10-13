@@ -31,6 +31,9 @@ def _purge_test_data() -> None:
     users = f"SELECT id FROM users WHERE email LIKE '{TEST_EMAIL_PREFIX}%'"
     items = f"SELECT id FROM items WHERE owner_id IN ({users})"
     with engine.begin() as conn:
+        conn.execute(
+            text(f"DELETE FROM email_verification_tokens WHERE user_id IN ({users})")
+        )
         # 감사 기록은 운영에서는 지우지 않지만, 보호 검증을 통과한 개발 DB의 테스트 계정 것은 지운다
         conn.execute(
             text(
@@ -82,13 +85,16 @@ class TestUser:
         self.id, self.email, self.nickname, self.headers = id, email, nickname, headers
 
 
-def make_user(client: TestClient, nickname: str = "테스트유저", lat: float = 37.5563, lng: float = 126.9019) -> TestUser:
+def make_user(client: TestClient, nickname: str = "테스트유저", lat: float = 37.5563, lng: float = 126.9019, verified: bool = True) -> TestUser:
     email = new_email()
     signup = client.post(
         "/auth/signup",
         json={"email": email, "password": "password1234", "nickname": nickname, "lat": lat, "lng": lng},
     )
     assert signup.status_code == 201, signup.text
+    if verified:
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE users SET email_verified_at = now() WHERE id = :i"), {"i": signup.json()["id"]})
     login = client.post("/auth/login", json={"email": email, "password": "password1234"})
     token = login.json()["access_token"]
     return TestUser(signup.json()["id"], email, nickname, {"Authorization": f"Bearer {token}"})

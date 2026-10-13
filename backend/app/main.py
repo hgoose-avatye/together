@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import check_runtime, settings
 from app.db import get_db
 from app.errors import register_error_handlers
 from app.routers import auth, items, me, reports
 
+check_runtime(settings)
 app = FastAPI(title="같이 API")
 register_error_handlers(app)
 app.include_router(auth.router)
