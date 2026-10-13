@@ -237,6 +237,7 @@ ALLOWED_UNVERIFIED = {
     ("POST", "/items/{item_id}/cancel"),
     ("GET", "/me/reservations"),
     ("GET", "/me/items"),
+    ("GET", "/me"),
     ("POST", "/reports"),
     ("POST", "/auth/resend-verification"),
 }
@@ -287,6 +288,22 @@ def test_verified_user_can_create_and_join(client: TestClient):
     owner, joiner = insert_user(loc, "개설자"), insert_user(loc, "참여자")
     item = insert_item(owner.id, loc)
     assert client.post(f"/items/{item}/join", headers=joiner.headers).status_code == 201
+
+
+def test_me_reports_current_verification_state(client: TestClient, outbox):
+    """다른 기기에서 인증을 마쳐도 같은 토큰으로 지금의 상태가 보인다(로그인 응답의 값은 갱신되지 않는다)."""
+    uid, email = signup(client)
+    jwt = client.post("/auth/login", json={"email": email, "password": "password1234"}).json()["access_token"]
+    h = {"Authorization": f"Bearer {jwt}"}
+    res = client.get("/me", headers=h)
+    assert res.status_code == 200
+    assert res.json() == {"id": uid, "nickname": "인증테스트", "lat": 37.56, "lng": 126.9, "email_verified": False}
+    assert verify(client, token_from(outbox[0])).status_code == 200
+    assert client.get("/me", headers=h).json()["email_verified"] is True
+
+
+def test_me_requires_login(client: TestClient):
+    assert client.get("/me").status_code == 401
 
 
 def test_unverified_flow_end_to_end(client: TestClient, outbox):

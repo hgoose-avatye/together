@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { Item, JoinResult, LoginResponse, MyItem, NewItem, Reservation } from './types'
+import type { User, Item, JoinResult, LoginResponse, MyItem, NewItem, Reservation } from './types'
 
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) })
 
@@ -41,4 +41,5 @@ export const createReport = (b: {
   reason: string
   detail: string
 }) => api<{ id: number; status: string }>('/reports', post(b))
+export const getMe = () => api<User>('/me')
 export const myItems = () => api<{ items: MyItem[] }>('/me/items')

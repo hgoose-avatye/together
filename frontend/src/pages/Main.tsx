@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { ApiError, token } from '../api'
 import ReportDialog, { type ReportTarget } from '../components/ReportDialog'
 import SafetyNotice from '../components/SafetyNotice'
-import { joinItem, listItems } from '../endpoints'
+import { getMe, joinItem, listItems } from '../endpoints'
 import { remaining, untilDate, won } from '../format'
 import type { Item } from '../types'
 
@@ -37,6 +37,17 @@ export default function Main() {
   const [joining, setJoining] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
+  // 지금의 인증 여부는 서버에 물어본다(다른 기기에서 인증했을 수 있다). 모르거나 실패하면 띠를 보이지 않는다.
+  const [unverified, setUnverified] = useState(false)
+  useEffect(() => {
+    let stale = false
+    getMe()
+      .then((u) => !stale && setUnverified(!u.email_verified))
+      .catch(() => {})
+    return () => {
+      stale = true
+    }
+  }, [])
 
   // 같은 key의 응답만 쓴다. 검색어를 빨리 바꿔도 늦게 온 옛 응답이 화면을 덮지 않는다.
   const key = `${tab}|${sort}|${radius}|${debouncedQ}|${reload}`
@@ -153,6 +164,15 @@ export default function Main() {
           </span>
         </div>
       </header>
+
+      {unverified && (
+        <Link
+          to="/check-email"
+          className="mx-4 mt-3 block rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900"
+        >
+          <b>이메일 인증이 필요해요.</b> 글을 올리고 신청하려면 인증을 마쳐 주세요 →
+        </Link>
+      )}
 
       {notice && (
         <p
