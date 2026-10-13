@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import { ApiError } from '../api'
 import { resendVerification, verifyEmail } from '../endpoints'
+import { continueTarget, peekResume } from '../resume'
 
 const COOLDOWN_SECONDS = 60 // 서버의 재발송 간격(기획서 5.10, 초안 값)과 맞춘다
 
@@ -14,6 +15,7 @@ export default function CheckEmail() {
   const [pasted, setPasted] = useState('')
   const [checking, setChecking] = useState(false)
   const [done, setDone] = useState(false)
+  const next = continueTarget(peekResume()) // 신청하거나 글을 쓰다 온 경우 거기로 돌아간다
 
   useEffect(() => {
     if (wait <= 0) return
@@ -74,9 +76,18 @@ export default function CheckEmail() {
       {done ? (
         <div role="status" className="mt-6 rounded-lg bg-green-50 p-4 text-green-800">
           <p className="font-semibold">인증이 끝났어요</p>
-          <Link to="/" className="mt-2 inline-block text-sm underline">
-            목록으로
-          </Link>
+          {next ? (
+            <Link
+              to={next.to}
+              className="mt-3 block rounded-lg bg-green-600 py-3 text-center font-semibold text-white"
+            >
+              {next.label}
+            </Link>
+          ) : (
+            <Link to="/" className="mt-2 inline-block text-sm underline">
+              목록으로
+            </Link>
+          )}
         </div>
       ) : (
         <div className="mt-8 text-left">

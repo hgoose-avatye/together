@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '../api'
 import PhotoPicker from '../components/PhotoPicker'
 import SafetyNotice from '../components/SafetyNotice'
-import { createItem } from '../endpoints'
+import VerifyNotice from '../components/VerifyNotice'
+import { createItem, getMe } from '../endpoints'
 import { splitPrice, won } from '../format'
+import { clearDraft, clearResume, loadDraft, saveDraft, saveResume } from '../resume'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const toDateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -16,25 +18,56 @@ export default function NewItem() {
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const isShare = params.get('type') === 'SHARE' // 현재 탭의 유형이 선택된다(기획서 11장)
-  const [photo, setPhoto] = useState<string | null>(null)
-  const [expiry, setExpiry] = useState(() => toDateInput(new Date()))
+  // 인증하러 갔다 돌아오면 쓰던 내용을 되살린다(같은 유형일 때만, 1시간 안의 것만)
+  const [saved] = useState(loadDraft)
+  const draft = saved && saved.type === (isShare ? 'SHARE' : 'GROUP_BUY') ? saved : null
+  const [photo, setPhoto] = useState<string | null>(draft?.photo ?? null)
+  const [expiry, setExpiry] = useState(() => draft?.expiry ?? toDateInput(new Date()))
   const [dateBounds] = useState(() => ({
     min: toDateInput(new Date()),
     max: toDateInput(new Date(Date.now() + 30 * 24 * 3600 * 1000)),
   }))
-  const [title, setTitle] = useState('')
-  const [price, setPrice] = useState('')
-  const [people, setPeople] = useState('3') // 나 포함 인원
-  const [deadline, setDeadline] = useState(() =>
-    toLocalInput(new Date(Date.now() + 24 * 3600 * 1000)),
+  const [title, setTitle] = useState(draft?.title ?? '')
+  const [price, setPrice] = useState(draft?.price ?? '')
+  const [people, setPeople] = useState(draft?.people ?? '3') // 나 포함 인원
+  const [deadline, setDeadline] = useState(
+    () => draft?.deadline ?? toLocalInput(new Date(Date.now() + 24 * 3600 * 1000)),
   )
   // 마감 입력의 선택 범위(지금 ~ 30일 뒤). 렌더링마다 바뀌지 않게 한 번만 계산한다
   const [bounds] = useState(() => ({
     min: toLocalInput(new Date()),
     max: toLocalInput(new Date(Date.now() + 30 * 24 * 3600 * 1000)),
   }))
-  const [note, setNote] = useState('')
-  const [url, setUrl] = useState('')
+  const [note, setNote] = useState(draft?.note ?? '')
+  const [url, setUrl] = useState(draft?.url ?? '')
+  // 인증이 필요한 상태인지: 열 때 미리 알아 두고, 제출 때 서버가 막아도 같은 안내를 보인다
+  const [needVerify, setNeedVerify] = useState(false)
+  useEffect(() => {
+    clearResume() // 이 화면으로 돌아왔으면 이어 가기는 끝난 것
+    let stale = false
+    getMe()
+      .then((u) => !stale && setNeedVerify(!u.email_verified))
+      .catch(() => {})
+    return () => {
+      stale = true
+    }
+  }, [])
+
+  function goVerify() {
+    saveDraft({
+      type: isShare ? 'SHARE' : 'GROUP_BUY',
+      title,
+      price,
+      people,
+      deadline,
+      expiry,
+      note,
+      url,
+      photo,
+    })
+    saveResume({ kind: 'new', path: isShare ? '/new?type=SHARE' : '/new' })
+    nav('/check-email')
+  }
   const [problem, setProblem] = useState<{ message: string; field?: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -79,10 +112,12 @@ export default function NewItem() {
           ...(photo && { image_url: photo }),
         })
       }
+      clearDraft()
       nav('/', { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
-        nav('/check-email') // 인증 안내 화면(기획서 11장)
+        setNeedVerify(true) // 입력한 내용은 그대로 두고 그 자리에서 안내한다
+        window.scrollTo({ top: 0 })
         return
       }
       setProblem(
@@ -124,6 +159,14 @@ export default function NewItem() {
           </button>
         ))}
       </div>
+
+      {needVerify && (
+        <VerifyNotice
+          className="mt-4"
+          message="인증을 마치면 글을 올릴 수 있어요. 쓰던 내용은 그대로 남겨 둘게요."
+          onGo={goVerify}
+        />
+      )}
 
       <form onSubmit={submit} className="mt-5 space-y-4">
         <label className="block">
