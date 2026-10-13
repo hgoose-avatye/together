@@ -22,7 +22,8 @@ def send_mail(to: str, subject: str, body: str) -> None:
     msg["From"], msg["To"], msg["Subject"] = settings.mail_from, to, subject
     msg.set_content(body)
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
-        smtp.starttls()
+        if settings.smtp_starttls:
+            smtp.starttls()
         if settings.smtp_user:
             smtp.login(settings.smtp_user, settings.smtp_password)
         smtp.send_message(msg)
