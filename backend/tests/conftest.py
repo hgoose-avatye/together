@@ -67,6 +67,17 @@ def clean_test_data():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _console_mail(monkeypatch):
+    """.env가 smtp(Mailpit, Gmail)여도 테스트가 실제 메일을 보내지 않게 console로 고정한다.
+
+    SMTP 경로를 검사하는 테스트(test_mail_smtp.py)만 자기 설정을 직접 바꿔 쓴다.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "mail_backend", "console")
+
+
 @pytest.fixture(scope="session")
 def client() -> TestClient:
     return TestClient(app)

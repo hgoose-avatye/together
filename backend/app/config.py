@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"  # 메일 링크의 앞부분
     smtp_host: str = ""
     smtp_port: int = 587
+    # 암호화 연결(STARTTLS). Gmail 같은 외부 SMTP는 켜 두고, 암호화를 지원하지 않는 로컬 Mailpit만 끈다.
+    smtp_starttls: bool = True
     smtp_user: str = ""
     smtp_password: str = ""
     mail_from: str = ""
@@ -48,6 +50,9 @@ def check_runtime(s: Settings) -> None:
         raise RuntimeError("운영 환경에서는 MAIL_BACKEND=console을 쓸 수 없습니다(인증 링크가 서버 로그에만 남음)")
     if s.mail_backend == "smtp" and not (s.smtp_host and s.mail_from):
         raise RuntimeError("MAIL_BACKEND=smtp에는 SMTP_HOST와 MAIL_FROM이 필요합니다")
+    # 비밀번호를 평문으로 보내지 않게 한다: 암호화 없이 로그인해야 하는 설정은 로컬 서버에만 허용
+    if s.mail_backend == "smtp" and not s.smtp_starttls and s.smtp_host not in ("localhost", "127.0.0.1"):
+        raise RuntimeError("SMTP_STARTTLS=false는 로컬 SMTP 서버(localhost)에서만 쓸 수 있습니다")
 
 
 settings = Settings()

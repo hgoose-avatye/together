@@ -8,6 +8,11 @@
 사진 저장소 설정(SUPABASE_URL, SUPABASE_SERVICE_KEY)과 버킷 확인:
   uv run python scripts/setup_env.py storage
 SUPABASE_URL은 DATABASE_URL의 프로젝트 ID로 자동으로 만든다.
+
+인증 메일 설정(기획서 5.10). 비밀 값은 화면에 보이지 않게 입력받는다:
+  uv run python scripts/setup_env.py mail console   # 서버 콘솔에 링크 출력(기본)
+  uv run python scripts/setup_env.py mail mailpit   # 로컬 Mailpit(SMTP 1025, 웹 http://localhost:8025)
+  uv run python scripts/setup_env.py mail gmail     # Gmail SMTP. 앱 비밀번호가 필요하다(개발·시연 전용)
 """
 
 import getpass
@@ -85,9 +90,42 @@ def setup_storage() -> None:
     print("저장 완료. backend/.env를 저장했습니다.")
 
 
+MAIL_KEYS = ("MAIL_BACKEND", "SMTP_HOST", "SMTP_PORT", "SMTP_STARTTLS", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM")
+
+
+def setup_mail(kind: str) -> None:
+    """메일 설정 값을 .env에 쓴다. 다른 메일 값은 지워 이전 설정이 남지 않게 한다."""
+    if kind == "console":
+        values = {"MAIL_BACKEND": "console"}
+    elif kind == "mailpit":
+        values = {"MAIL_BACKEND": "smtp", "SMTP_HOST": "localhost", "SMTP_PORT": "1025", "SMTP_STARTTLS": "false", "MAIL_FROM": "같이 <no-reply@gachi.local>"}
+    elif kind == "gmail":
+        addr = input("Gmail 주소: ").strip()
+        if not re.fullmatch(r"[^@\s]+@gmail\.com", addr):
+            sys.exit("Gmail 주소가 아닙니다. .env는 바꾸지 않았습니다.")
+        print("Google 계정 > 보안 > 2단계 인증을 켠 뒤 '앱 비밀번호'를 만들어 붙여 넣으세요(16자리, 공백은 무시).")
+        pw = ""
+        while not pw:
+            pw = getpass.getpass("앱 비밀번호 (입력해도 보이지 않음): ").replace(" ", "").strip()
+        if len(pw) != 16:
+            sys.exit("앱 비밀번호는 16자리입니다. 로그인 비밀번호가 아닌지 확인해 주세요. .env는 바꾸지 않았습니다.")
+        values = {"MAIL_BACKEND": "smtp", "SMTP_HOST": "smtp.gmail.com", "SMTP_PORT": "587", "SMTP_STARTTLS": "true", "SMTP_USER": addr, "SMTP_PASSWORD": pw, "MAIL_FROM": addr}
+    else:
+        sys.exit("mail 뒤에는 console, mailpit, gmail 중 하나를 쓰세요.")
+    lines = [l for l in ENV.read_text().splitlines() if l.split("=", 1)[0] not in MAIL_KEYS]
+    for key, value in values.items():
+        lines = set_line(lines, key, value)
+    ENV.write_text("\n".join(lines) + "\n")
+    print(f"저장 완료. 메일 방식: {kind}. 서버를 다시 시작하면 적용됩니다.")
+
+
 def main() -> None:
     if not ENV.exists():
         shutil.copy(EXAMPLE, ENV)
+
+    if len(sys.argv) > 2 and sys.argv[1] == "mail":
+        setup_mail(sys.argv[2])
+        return
 
     if len(sys.argv) > 1 and sys.argv[1] == "storage":
         setup_storage()
